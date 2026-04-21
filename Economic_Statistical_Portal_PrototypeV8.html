@@ -1,0 +1,3073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Economic Statistical Portal — Prototype · Bank of Tanzania</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind (utility classes only, no custom config needed here) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    html, body, #root { margin: 0; padding: 0; min-height: 100%; }
+    body { font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    button { cursor: pointer; }
+    input:focus { outline: none; }
+    ::selection { background: #D4AF37; color: #1F3864; }
+    /* Loader */
+    .boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #1F3864 0%, #0A1F44 50%, #2B2B2B 100%); color: #fff;
+      font-family: 'IBM Plex Sans', sans-serif; z-index: 9999; transition: opacity .3s; }
+    .boot.gone { opacity: 0; pointer-events: none; }
+    .boot .ring { width: 54px; height: 54px; border: 3px solid rgba(255,255,255,0.15);
+      border-top-color: #D4AF37; border-radius: 50%; animation: spin .9s linear infinite; margin-bottom: 18px; }
+    .boot h1 { font-family: Georgia, serif; font-size: 20px; margin: 0; }
+    .boot p { font-size: 11px; opacity: .7; letter-spacing: .18em; text-transform: uppercase; margin-top: 4px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- Boot splash while React + Babel warm up -->
+<div class="boot" id="boot">
+  <div style="text-align:center">
+    <div class="ring"></div>
+    <h1>Economic Statistical Portal</h1>
+    <p>Bank of Tanzania · Loading prototype…</p>
+  </div>
+</div>
+
+<div id="root"></div>
+
+<!-- Dependencies (CDN) -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+<script crossorigin src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useMemo, useRef, useEffect } = React;
+const {
+  LineChart, Line, BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  ReferenceDot, ReferenceArea, ComposedChart
+} = Recharts;
+
+// ---------- Inline Lucide-style icons ----------
+const I = ({ size = 16, children, style, ...rest }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+       stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+       style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }} {...rest}>
+    {children}
+  </svg>
+);
+const Lock = (p) => <I {...p}><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></I>;
+const User = (p) => <I {...p}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></I>;
+const Eye = (p) => <I {...p}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></I>;
+const EyeOff = (p) => <I {...p}><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" /><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" /><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" /><line x1="2" y1="2" x2="22" y2="22" /></I>;
+const Sun = (p) => <I {...p}><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></I>;
+const Moon = (p) => <I {...p}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></I>;
+const Award = (p) => <I {...p}><circle cx="12" cy="8" r="7" /><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" /></I>;
+const Search = (p) => <I {...p}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></I>;
+const ChevronDown = (p) => <I {...p}><polyline points="6 9 12 15 18 9" /></I>;
+const ChevronLeft = (p) => <I {...p}><polyline points="15 18 9 12 15 6" /></I>;
+const ChevronRight = (p) => <I {...p}><polyline points="9 18 15 12 9 6" /></I>;
+const X = (p) => <I {...p}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></I>;
+const Download = (p) => <I {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></I>;
+const ImageIcon = (p) => <I {...p}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></I>;
+const FileSpreadsheet = (p) => <I {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M8 13h8M8 17h8" /></I>;
+const RotateCcw = (p) => <I {...p}><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></I>;
+const Play = (p) => <I {...p}><polygon points="5 3 19 12 5 21 5 3" /></I>;
+const TrendingUp = (p) => <I {...p}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></I>;
+const BarChart3 = (p) => <I {...p}><path d="M3 3v18h18" /><path d="M7 16V9M11 16v-5M15 16v-3M19 16v-8" /></I>;
+const Activity = (p) => <I {...p}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></I>;
+const Users = (p) => <I {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></I>;
+const Settings = (p) => <I {...p}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.04 4.9l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></I>;
+const Check = (p) => <I {...p}><polyline points="20 6 9 17 4 12" /></I>;
+const Info = (p) => <I {...p}><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></I>;
+const Grid = (p) => <I {...p}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></I>;
+const Menu = (p) => <I {...p}><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></I>;
+const Sigma = (p) => <I {...p}><path d="M18 7V4H6l6 8-6 8h12v-3"/></I>;
+/* --- Icons new in V5 --- */
+const Minus = (p) => <I {...p}><line x1="5" y1="12" x2="19" y2="12" /></I>;
+const CalendarIcon = (p) => <I {...p}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></I>;
+const Sliders = (p) => <I {...p}><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></I>;
+const PaletteIcon = (p) => <I {...p}><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></I>;
+
+// ============================================================================
+// Bank of Tanzania main app (V5 logic) — body follows
+// ============================================================================
+
+// ============================================================================
+// BRAND TOKENS  —  Bank of Tanzania (BoT)
+// ============================================================================
+const BRAND = {
+  navy: '#1F3864',
+  gold: '#D4AF37',
+  emerald: '#0E6E4B',     // BoT uses a green seal element
+  charcoal: '#2B2B2B',
+  midGrey: '#7F7F7F',
+  mildGrey: '#E6E6E6',
+  offWhite: '#F7F7F5',
+  lightGrey: '#D9D9D9'
+};
+
+const CHART = {
+  blue: '#4A7FBB',
+  red: '#BE4B48',
+  green: '#98B954',
+  violet: '#8064A2',
+  lightBlue: '#6BAED6',
+  black: '#000000'
+};
+
+// Default series palette
+const SERIES_COLORS = [CHART.blue, CHART.red, CHART.green, CHART.violet, CHART.lightBlue, CHART.black];
+
+// Named preset palettes offered to the user.
+const PALETTES = {
+  'Default (institutional)': SERIES_COLORS,
+  'Warm':                    ['#C0392B', '#E67E22', '#F1C40F', '#D35400', '#E74C3C', '#F39C12'],
+  'Cool':                    ['#2980B9', '#16A085', '#27AE60', '#3498DB', '#1ABC9C', '#0E6655'],
+  'Earth':                   ['#8B4513', '#A0522D', '#CD853F', '#DEB887', '#BC8F8F', '#5D4037'],
+  'Vibrant':                 ['#E74C3C', '#3498DB', '#2ECC71', '#F39C12', '#9B59B6', '#1ABC9C'],
+  'Pastel':                  ['#F28B82', '#AECBFA', '#CCFF90', '#FDD663', '#FFB4A2', '#D7AEFB'],
+  'Monochrome (Blue)':       ['#0D47A1', '#1976D2', '#42A5F5', '#90CAF9', '#BBDEFB', '#64B5F6'],
+  'Monochrome (Green)':      ['#1B5E20', '#388E3C', '#66BB6A', '#A5D6A7', '#C8E6C9', '#81C784']
+};
+
+// ============================================================================
+// THEMES
+// ============================================================================
+const THEMES = {
+  institutional: {
+    name: 'Institutional',
+    icon: Award,
+    bg: BRAND.offWhite,
+    surface: '#FFFFFF',
+    heroBg: BRAND.navy,
+    heroText: '#FFFFFF',
+    heroAccent: BRAND.gold,
+    tabBg: '#FFFFFF',
+    tabBorder: BRAND.mildGrey,
+    tabActive: BRAND.navy,
+    tabActiveBorder: BRAND.gold,
+    text: BRAND.charcoal,
+    muted: BRAND.midGrey,
+    border: BRAND.mildGrey,
+    chartBg: '#FFFFFF',
+    accent: BRAND.gold,
+    buttonBg: BRAND.navy,
+    buttonText: '#FFFFFF'
+  },
+  light: {
+    name: 'Light',
+    icon: Sun,
+    bg: '#FFFFFF',
+    surface: '#FAFAFA',
+    heroBg: '#FFFFFF',
+    heroText: BRAND.navy,
+    heroAccent: BRAND.gold,
+    tabBg: '#FFFFFF',
+    tabBorder: BRAND.mildGrey,
+    tabActive: BRAND.navy,
+    tabActiveBorder: BRAND.navy,
+    text: BRAND.charcoal,
+    muted: BRAND.midGrey,
+    border: BRAND.mildGrey,
+    chartBg: 'transparent',
+    accent: BRAND.navy,
+    buttonBg: BRAND.navy,
+    buttonText: '#FFFFFF'
+  },
+  dark: {
+    name: 'Dark',
+    icon: Moon,
+    bg: '#0F1724',
+    surface: '#1A2332',
+    heroBg: '#0A111D',
+    heroText: '#FFFFFF',
+    heroAccent: BRAND.gold,
+    tabBg: '#1A2332',
+    tabBorder: '#2A3444',
+    tabActive: '#FFFFFF',
+    tabActiveBorder: BRAND.gold,
+    text: '#F0F0F0',
+    muted: '#8B95A7',
+    border: '#2A3444',
+    chartBg: '#1A2332',
+    accent: BRAND.gold,
+    buttonBg: BRAND.gold,
+    buttonText: BRAND.charcoal
+  }
+};
+
+// ============================================================================
+// INDICATORS (three-level data model Tab → Topic → Variable, but the UI now
+// exposes all variables of a Tab at once; Topic is displayed as a group label)
+// ============================================================================
+const INDICATORS = [
+  // ===== Payment Statistics =====
+  { id: 'tiss_vol',  name: 'Volume',              topic: 'TISS transactions (large value)', category: 'Payment Statistics',  unit: 'thousand txns',  aggregation: 'sum' },
+  { id: 'tiss_val',  name: 'Value',               topic: 'TISS transactions (large value)', category: 'Payment Statistics',  unit: 'TZS billion',    aggregation: 'sum' },
+  { id: 'tips_vol',  name: 'Volume',              topic: 'TIPS Transactions',               category: 'Payment Statistics',  unit: 'thousand txns',  aggregation: 'sum' },
+  { id: 'tips_val',  name: 'Value',               topic: 'TIPS Transactions',               category: 'Payment Statistics',  unit: 'TZS billion',    aggregation: 'sum' },
+  { id: 'ch_vol',    name: 'Cheques cleared',     topic: 'Clearing House',                  category: 'Payment Statistics',  unit: 'thousand cheques', aggregation: 'sum' },
+  { id: 'ch_val',    name: 'Value cleared',       topic: 'Clearing House',                  category: 'Payment Statistics',  unit: 'TZS billion',    aggregation: 'sum' },
+  { id: 'ch_ret',    name: 'Returned cheques',    topic: 'Clearing House',                  category: 'Payment Statistics',  unit: 'percent',        aggregation: 'average' },
+  { id: 'card_vol',  name: 'Volume',              topic: 'Card payments',                   category: 'Payment Statistics',  unit: 'thousand txns',  aggregation: 'sum' },
+  { id: 'card_val',  name: 'Value',               topic: 'Card payments',                   category: 'Payment Statistics',  unit: 'TZS billion',    aggregation: 'sum' },
+  { id: 'card_act',  name: 'Active cards',        topic: 'Card payments',                   category: 'Payment Statistics',  unit: 'thousand cards', aggregation: 'last' },
+  { id: 'ib_vol',    name: 'Volume',              topic: 'Internet Banking',                category: 'Payment Statistics',  unit: 'thousand txns',  aggregation: 'sum' },
+  { id: 'ib_val',    name: 'Value',               topic: 'Internet Banking',                category: 'Payment Statistics',  unit: 'TZS billion',    aggregation: 'sum' },
+  { id: 'ib_usr',    name: 'Registered users',    topic: 'Internet Banking',                category: 'Payment Statistics',  unit: 'thousand users', aggregation: 'last' },
+  { id: 'mob_vol',   name: 'Volume',              topic: 'Mobile Transactions',             category: 'Payment Statistics',  unit: 'million txns',   aggregation: 'sum' },
+  { id: 'mob_val',   name: 'Value',               topic: 'Mobile Transactions',             category: 'Payment Statistics',  unit: 'TZS billion',    aggregation: 'sum' },
+  { id: 'mob_sub',   name: 'Active subscribers',  topic: 'Mobile Transactions',             category: 'Payment Statistics',  unit: 'million',        aggregation: 'last' },
+  { id: 'rem_in',    name: 'Inflows',             topic: 'Money Remittances',               category: 'Payment Statistics',  unit: 'USD million',    aggregation: 'sum' },
+  { id: 'rem_out',   name: 'Outflows',            topic: 'Money Remittances',               category: 'Payment Statistics',  unit: 'USD million',    aggregation: 'sum' },
+  { id: 'rem_net',   name: 'Net balance',         topic: 'Money Remittances',               category: 'Payment Statistics',  unit: 'USD million',    aggregation: 'sum' },
+  { id: 'cb_in',     name: 'Inflows',             topic: 'Cross border Transactions',       category: 'Payment Statistics',  unit: 'USD million',    aggregation: 'sum' },
+  { id: 'cb_out',    name: 'Outflows',            topic: 'Cross border Transactions',       category: 'Payment Statistics',  unit: 'USD million',    aggregation: 'sum' },
+  { id: 'sa_sub',    name: 'Subscribers',         topic: 'Subscribers and Agents',          category: 'Payment Statistics',  unit: 'million',        aggregation: 'last' },
+  { id: 'sa_agent',  name: 'Registered agents',   topic: 'Subscribers and Agents',          category: 'Payment Statistics',  unit: 'thousand',       aggregation: 'last' },
+  { id: 'sa_tpa',    name: 'Txns per agent',      topic: 'Subscribers and Agents',          category: 'Payment Statistics',  unit: 'txns/month',     aggregation: 'average' },
+
+  // ===== External Sector Statistics =====
+  { id: 'tx_coffee',  name: 'Coffee',              topic: 'Traditional exports',        category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'tx_cotton',  name: 'Cotton',              topic: 'Traditional exports',        category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'tx_tea',     name: 'Tea',                 topic: 'Traditional exports',        category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'ext_tpi_x',  name: 'Export price index',  topic: 'Trade price indices',        category: 'External Sector Statistics', unit: 'index (2015=100)', aggregation: 'average' },
+  { id: 'ext_tpi_m',  name: 'Import price index',  topic: 'Trade price indices',        category: 'External Sector Statistics', unit: 'index (2015=100)', aggregation: 'average' },
+  { id: 'ext_tpi_t',  name: 'Terms of trade',      topic: 'Trade price indices',        category: 'External Sector Statistics', unit: 'index (2015=100)', aggregation: 'average' },
+  { id: 'sr_travel',  name: 'Travel receipts',     topic: 'Services receipts',          category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'sr_trans',   name: 'Transport receipts',  topic: 'Services receipts',          category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'sr_other',   name: 'Other services',      topic: 'Services receipts',          category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'ntx_gold',   name: 'Gold',                topic: 'Non-traditional exports',    category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'ntx_manuf',  name: 'Manufactured goods',  topic: 'Non-traditional exports',    category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'ntx_horti',  name: 'Horticultural',       topic: 'Non-traditional exports',    category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'ig_cap',     name: 'Capital goods',       topic: 'Imports of goods',           category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'ig_int',     name: 'Intermediate goods',  topic: 'Imports of goods',           category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'ig_con',     name: 'Consumer goods',      topic: 'Imports of goods',           category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'im_tot',     name: 'Total imports',       topic: 'Imports',                    category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'im_oil',     name: 'Oil imports',         topic: 'Imports',                    category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'im_non',     name: 'Non-oil imports',     topic: 'Imports',                    category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'fr_tot',     name: 'Total reserves',      topic: 'Foreign reserves',           category: 'External Sector Statistics', unit: 'USD billion',      aggregation: 'last' },
+  { id: 'fr_cov',     name: 'Months of import cover', topic: 'Foreign reserves',        category: 'External Sector Statistics', unit: 'months',           aggregation: 'last' },
+  { id: 'fdi_in',     name: 'Inflows',             topic: 'Foreign direct investment',  category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'fdi_out',    name: 'Outflows',            topic: 'Foreign direct investment',  category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'fdi_net',    name: 'Net FDI',             topic: 'Foreign direct investment',  category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'ex_tot',     name: 'Total exports',       topic: 'Exports',                    category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'ex_goods',   name: 'Goods exports',       topic: 'Exports',                    category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'ex_serv',    name: 'Services exports',    topic: 'Exports',                    category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'cur_bal',    name: 'Current account balance', topic: 'Current account',        category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'cur_trade',  name: 'Trade balance',       topic: 'Current account',            category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+  { id: 'cur_serv',   name: 'Services balance',    topic: 'Current account',            category: 'External Sector Statistics', unit: 'USD million',      aggregation: 'sum' },
+
+  // ===== National Account Statistics =====
+  { id: 'gpc_nom',  name: 'Nominal per capita', topic: 'GDP per capita',         category: 'National Account Statistics', unit: 'USD',                 aggregation: 'last' },
+  { id: 'gpc_real', name: 'Real per capita',    topic: 'GDP per capita',         category: 'National Account Statistics', unit: 'USD',                 aggregation: 'last' },
+  { id: 'gpc_grw',  name: 'Growth rate',        topic: 'GDP per capita',         category: 'National Account Statistics', unit: 'percent',             aggregation: 'average' },
+  { id: 'gcp_tot',  name: 'Total GDP (nominal)',topic: 'GDP at current prices',  category: 'National Account Statistics', unit: 'TZS billion',         aggregation: 'average' },
+  { id: 'gcp_agri', name: 'Agriculture share',  topic: 'GDP at current prices',  category: 'National Account Statistics', unit: 'percent',             aggregation: 'average' },
+  { id: 'gcp_ind',  name: 'Industry share',     topic: 'GDP at current prices',  category: 'National Account Statistics', unit: 'percent',             aggregation: 'average' },
+  { id: 'gcp_svc',  name: 'Services share',     topic: 'GDP at current prices',  category: 'National Account Statistics', unit: 'percent',             aggregation: 'average' },
+  { id: 'gkp_tot',  name: 'Total GDP (real)',   topic: 'GDP at constant prices', category: 'National Account Statistics', unit: 'TZS billion (2015)',  aggregation: 'average' },
+  { id: 'gkp_grw',  name: 'Real growth rate',   topic: 'GDP at constant prices', category: 'National Account Statistics', unit: 'percent',             aggregation: 'average' },
+  { id: 'gkp_agri', name: 'Agriculture (real)', topic: 'GDP at constant prices', category: 'National Account Statistics', unit: 'TZS billion (2015)',  aggregation: 'average' },
+
+  // ===== Financial Sector Indicators =====
+  { id: 'smr_ir',   name: 'Interest rate risk',    topic: 'Sensitivity to market risk', category: 'Financial Sector Indicators', unit: 'percent', aggregation: 'average' },
+  { id: 'smr_fx',   name: 'FX exposure',           topic: 'Sensitivity to market risk', category: 'Financial Sector Indicators', unit: 'percent', aggregation: 'average' },
+  { id: 'smr_nop',  name: 'Net open position',     topic: 'Sensitivity to market risk', category: 'Financial Sector Indicators', unit: 'percent', aggregation: 'average' },
+  { id: 'liq_la',   name: 'Liquid assets ratio',   topic: 'Liquidity',                  category: 'Financial Sector Indicators', unit: 'percent', aggregation: 'average' },
+  { id: 'liq_ltd',  name: 'Loan-to-deposit ratio', topic: 'Liquidity',                  category: 'Financial Sector Indicators', unit: 'percent', aggregation: 'average' },
+  { id: 'liq_lcr',  name: 'Liquidity coverage',    topic: 'Liquidity',                  category: 'Financial Sector Indicators', unit: 'percent', aggregation: 'average' },
+  { id: 'ep_roa',   name: 'Return on assets',      topic: 'Earnings and profitability', category: 'Financial Sector Indicators', unit: 'percent', aggregation: 'average' },
+  { id: 'ep_roe',   name: 'Return on equity',      topic: 'Earnings and profitability', category: 'Financial Sector Indicators', unit: 'percent', aggregation: 'average' },
+  { id: 'ep_nim',   name: 'Net interest margin',   topic: 'Earnings and profitability', category: 'Financial Sector Indicators', unit: 'percent', aggregation: 'average' },
+  { id: 'cap_core', name: 'Core capital ratio',    topic: 'Capital adequacy',           category: 'Financial Sector Indicators', unit: 'percent', aggregation: 'average' },
+  { id: 'cap_tot',  name: 'Total capital ratio',   topic: 'Capital adequacy',           category: 'Financial Sector Indicators', unit: 'percent', aggregation: 'average' },
+  { id: 'cap_t1',   name: 'Tier 1 ratio',          topic: 'Capital adequacy',           category: 'Financial Sector Indicators', unit: 'percent', aggregation: 'average' },
+  { id: 'aq_npl',   name: 'NPL ratio',             topic: 'Asset composition and quality', category: 'Financial Sector Indicators', unit: 'percent', aggregation: 'average' },
+  { id: 'aq_prov',  name: 'Provisioning coverage', topic: 'Asset composition and quality', category: 'Financial Sector Indicators', unit: 'percent', aggregation: 'average' },
+  { id: 'aq_lngr',  name: 'Loan growth',           topic: 'Asset composition and quality', category: 'Financial Sector Indicators', unit: 'percent', aggregation: 'average' },
+
+  // ===== Prices and Interest Rates =====
+  { id: 'p_tpi_x',   name: 'Export price index',    topic: 'Trade price indices',   category: 'Prices and Interest Rates', unit: 'index (2015=100)', aggregation: 'average' },
+  { id: 'p_tpi_m',   name: 'Import price index',    topic: 'Trade price indices',   category: 'Prices and Interest Rates', unit: 'index (2015=100)', aggregation: 'average' },
+  { id: 'p_tpi_t',   name: 'Terms of trade',        topic: 'Trade price indices',   category: 'Prices and Interest Rates', unit: 'index (2015=100)', aggregation: 'average' },
+  { id: 'pr_head',   name: 'Headline CPI',          topic: 'Prices',                category: 'Prices and Interest Rates', unit: 'percent',          aggregation: 'average' },
+  { id: 'pr_food',   name: 'Food inflation',        topic: 'Prices',                category: 'Prices and Interest Rates', unit: 'percent',          aggregation: 'average' },
+  { id: 'pr_energy', name: 'Energy inflation',      topic: 'Prices',                category: 'Prices and Interest Rates', unit: 'percent',          aggregation: 'average' },
+  { id: 'pr_core',   name: 'Core inflation',        topic: 'Prices',                category: 'Prices and Interest Rates', unit: 'percent',          aggregation: 'average' },
+  { id: 'mi_prod',   name: 'Production index',      topic: 'Manufacturing index',   category: 'Prices and Interest Rates', unit: 'index (2015=100)', aggregation: 'average' },
+  { id: 'mi_pmi',    name: 'Manufacturing PMI',     topic: 'Manufacturing index',   category: 'Prices and Interest Rates', unit: 'index',            aggregation: 'average' },
+  { id: 'mi_cap',    name: 'Capacity utilisation',  topic: 'Manufacturing index',   category: 'Prices and Interest Rates', unit: 'percent',          aggregation: 'average' },
+  { id: 'ir_91',     name: '91-day T-bill',         topic: 'Interest rates',        category: 'Prices and Interest Rates', unit: 'percent',          aggregation: 'average' },
+  { id: 'ir_182',    name: '182-day T-bill',        topic: 'Interest rates',        category: 'Prices and Interest Rates', unit: 'percent',          aggregation: 'average' },
+  { id: 'ir_dep',    name: 'Deposit rate',          topic: 'Interest rates',        category: 'Prices and Interest Rates', unit: 'percent',          aggregation: 'average' },
+  { id: 'ir_len',    name: 'Lending rate',          topic: 'Interest rates',        category: 'Prices and Interest Rates', unit: 'percent',          aggregation: 'average' },
+  { id: 'fx_usd',    name: 'TZS per USD',           topic: 'Exchange rates',        category: 'Prices and Interest Rates', unit: 'TZS/USD',          aggregation: 'average' },
+  { id: 'fx_eur',    name: 'TZS per EUR',           topic: 'Exchange rates',        category: 'Prices and Interest Rates', unit: 'TZS/EUR',          aggregation: 'average' },
+  { id: 'fx_gbp',    name: 'TZS per GBP',           topic: 'Exchange rates',        category: 'Prices and Interest Rates', unit: 'TZS/GBP',          aggregation: 'average' },
+
+  // ===== Government Finance Statistics =====
+  { id: 'gr_prog',  name: 'Programme grants',       topic: 'Grants',                  category: 'Government Finance Statistics', unit: 'TZS billion',    aggregation: 'sum' },
+  { id: 'gr_proj',  name: 'Project grants',         topic: 'Grants',                  category: 'Government Finance Statistics', unit: 'TZS billion',    aggregation: 'sum' },
+  { id: 'gr_tot',   name: 'Total grants',           topic: 'Grants',                  category: 'Government Finance Statistics', unit: 'TZS billion',    aggregation: 'sum' },
+  { id: 'exp_rec',  name: 'Recurrent expenditure',  topic: 'Government expenditure',  category: 'Government Finance Statistics', unit: 'TZS billion',    aggregation: 'sum' },
+  { id: 'exp_dev',  name: 'Development expenditure',topic: 'Government expenditure',  category: 'Government Finance Statistics', unit: 'TZS billion',    aggregation: 'sum' },
+  { id: 'exp_int',  name: 'Interest payments',      topic: 'Government expenditure',  category: 'Government Finance Statistics', unit: 'TZS billion',    aggregation: 'sum' },
+  { id: 'dr_tax',   name: 'Tax revenue',            topic: 'Domestic revenue',        category: 'Government Finance Statistics', unit: 'TZS billion',    aggregation: 'sum' },
+  { id: 'dr_ntax',  name: 'Non-tax revenue',        topic: 'Domestic revenue',        category: 'Government Finance Statistics', unit: 'TZS billion',    aggregation: 'sum' },
+  { id: 'dr_tot',   name: 'Total domestic revenue', topic: 'Domestic revenue',        category: 'Government Finance Statistics', unit: 'TZS billion',    aggregation: 'sum' },
+  { id: 'ds_dom',   name: 'Domestic debt',          topic: 'Debt stock',              category: 'Government Finance Statistics', unit: 'TZS billion',    aggregation: 'last' },
+  { id: 'ds_ext',   name: 'External debt',          topic: 'Debt stock',              category: 'Government Finance Statistics', unit: 'USD billion',    aggregation: 'last' },
+  { id: 'ds_gdp',   name: 'Total debt to GDP',      topic: 'Debt stock',              category: 'Government Finance Statistics', unit: 'percent of GDP', aggregation: 'last' },
+];
+
+const CATEGORIES = [
+  'Payment Statistics',
+  'External Sector Statistics',
+  'National Account Statistics',
+  'Financial Sector Indicators',
+  'Prices and Interest Rates',
+  'Government Finance Statistics'
+];
+
+const LOCATIONS = ['Tanzania', 'Kenya', 'Rwanda', 'South Africa', 'South Sudan', 'Japan', 'EU Area', 'USA', 'Brazil'];
+
+const FONT_OPTIONS = {
+  'IBM Plex Sans':   '"IBM Plex Sans", system-ui, sans-serif',
+  'Calibri':         'Calibri, "Segoe UI", sans-serif',
+  'Cambria':         'Cambria, Georgia, serif',
+  'Arial':           'Arial, Helvetica, sans-serif',
+  'Times New Roman': '"Times New Roman", Times, serif',
+  'Georgia':         'Georgia, "Times New Roman", serif',
+  'Garamond':        'Garamond, "EB Garamond", Georgia, serif'
+};
+const fontLabelFromValue = (v) => {
+  const entry = Object.entries(FONT_OPTIONS).find(([, val]) => val === v);
+  return entry ? entry[0] : 'IBM Plex Sans';
+};
+
+// ============================================================================
+// SYNTHETIC DATA  (60 months: Jan 2021 – Dec 2025)
+// ============================================================================
+function mulberry32(seed) {
+  return function () {
+    let t = seed += 0x6D2B79F5;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function makeSeries(months, rand, o) {
+  const { base = 0, trend = 0, growth = null, season = 0, phase = 0,
+          noise = 0, shock = 0, shockStart = 0, shockLen = 0,
+          floor = null, cap = null, int: asInt = false, dp = 2 } = o;
+  return months.map((m, i) => {
+    let v = growth != null ? base * Math.pow(1 + growth, i) : base + trend * i;
+    if (season) v += season * Math.sin((i / 12) * 2 * Math.PI + phase);
+    if (shock && i >= shockStart && i < shockStart + shockLen) {
+      v += shock * Math.sin(((i - shockStart) / shockLen) * Math.PI);
+    }
+    if (noise) v += (rand() - 0.5) * noise;
+    if (floor != null) v = Math.max(floor, v);
+    if (cap != null)   v = Math.min(cap, v);
+    return asInt ? Math.round(v) : +v.toFixed(dp);
+  });
+}
+
+function generateData() {
+  const rand = mulberry32(17);
+  const months = [];
+  const startYear = 2021;
+  for (let y = 0; y < 5; y++) for (let m = 0; m < 12; m++) {
+    const d = new Date(startYear + y, m, 1);
+    months.push({ date: d, label: d.toLocaleDateString('en-US', { year: 'numeric', month: 'short' }),
+      key: `${startYear + y}-${String(m + 1).padStart(2, '0')}` });
+  }
+  const M = (o) => makeSeries(months, rand, o);
+  const s = {};
+
+  // ----- Payment Statistics -----
+  s.tiss_vol  = M({ base: 380,   trend: 2.5,  season: 35,   noise: 25,   int: true });
+  s.tiss_val  = M({ base: 17500, trend: 140,  season: 1800, noise: 900,  int: true });
+  s.tips_vol  = M({ base: 220,   trend: 6,    season: 20,   noise: 18,   int: true });
+  s.tips_val  = M({ base: 4200,  trend: 65,   season: 300,  noise: 200,  int: true });
+  s.ch_vol    = M({ base: 180,   trend: -0.6, season: 15,   noise: 12,   int: true, floor: 80 });
+  s.ch_val    = M({ base: 3600,  trend: 12,   season: 280,  noise: 180,  int: true });
+  s.ch_ret    = M({ base: 2.8,   trend: -0.015, season: 0.3,noise: 0.4,  floor: 0.5, dp: 2 });
+  s.card_vol  = M({ base: 820,   trend: 7,    season: 60,   noise: 40,   int: true });
+  s.card_val  = M({ base: 2400,  trend: 22,   season: 180,  noise: 100,  int: true });
+  s.card_act  = M({ base: 1800,  growth: 0.012, noise: 20,  int: true });
+  s.ib_vol    = M({ base: 340,   trend: 5,    season: 30,   noise: 20,   int: true });
+  s.ib_val    = M({ base: 1200,  trend: 15,   season: 100,  noise: 60,   int: true });
+  s.ib_usr    = M({ base: 420,   growth: 0.011, noise: 10,  int: true });
+  s.mob_vol   = M({ base: 180,   growth: 0.015, season: 10, noise: 5,    dp: 1 });
+  s.mob_val   = M({ base: 12500, trend: 240,  season: 800,  noise: 400,  int: true });
+  s.mob_sub   = M({ base: 32,    growth: 0.008, noise: 0.3, dp: 1 });
+  s.rem_in    = M({ base: 220,   trend: 2.2,  season: 40,   noise: 25,   int: true });
+  s.rem_out   = M({ base: 95,    trend: 1.0,  season: 15,   noise: 12,   int: true, floor: 10 });
+  s.rem_net   = months.map((m, i) => s.rem_in[i] - s.rem_out[i]);
+  s.cb_in     = M({ base: 320,   trend: 2.8,  season: 55,   noise: 30,   int: true });
+  s.cb_out    = M({ base: 280,   trend: 3.5,  season: 45,   noise: 28,   int: true });
+  s.sa_sub    = M({ base: 32,    growth: 0.008, noise: 0.25, dp: 1 });
+  s.sa_agent  = M({ base: 620,   growth: 0.009, noise: 8,   int: true });
+  s.sa_tpa    = M({ base: 290,   trend: 1.8,  season: 12,   noise: 10,   int: true });
+
+  // ----- External Sector Statistics -----
+  s.tx_coffee  = M({ base: 45,   trend: 0.3,   season: 25,   phase: -0.5, noise: 8,   int: true, floor: 2 });
+  s.tx_cotton  = M({ base: 28,   trend: 0.15,  season: 18,   phase: 0.3,  noise: 5,   int: true, floor: 1 });
+  s.tx_tea     = M({ base: 18,   trend: 0.1,   season: 6,    phase: 0.7,  noise: 3,   int: true, floor: 1 });
+  s.ext_tpi_x  = M({ base: 108,  trend: 0.15,  season: 2.5,  noise: 1.5,  dp: 1 });
+  s.ext_tpi_m  = M({ base: 112,  trend: 0.25,  season: 3,    noise: 2,   shock: 8, shockStart: 12, shockLen: 18, dp: 1 });
+  s.ext_tpi_t  = months.map((m, i) => +(100 * s.ext_tpi_x[i] / s.ext_tpi_m[i]).toFixed(1));
+  s.sr_travel  = M({ base: 140,  trend: 2.2,   season: 55,   phase: -0.2, noise: 20,  int: true, floor: 10 });
+  s.sr_trans   = M({ base: 95,   trend: 1.1,   season: 18,   noise: 10,  int: true });
+  s.sr_other   = M({ base: 60,   trend: 0.8,   season: 10,   noise: 8,   int: true });
+  s.ntx_gold   = M({ base: 280,  trend: 1.2,   season: 20,   noise: 25,  int: true });
+  s.ntx_manuf  = M({ base: 110,  trend: 1.8,   season: 12,   noise: 12,  int: true });
+  s.ntx_horti  = M({ base: 45,   trend: 0.5,   season: 18,   phase: -0.4, noise: 6,  int: true, floor: 5 });
+  s.ig_cap     = M({ base: 280,  trend: 3.0,   season: 35,   noise: 25,  int: true });
+  s.ig_int     = M({ base: 340,  trend: 2.5,   season: 40,   noise: 28,  int: true });
+  s.ig_con     = M({ base: 260,  trend: 2.2,   season: 30,   noise: 22,  int: true });
+  s.im_tot     = months.map((m, i) => s.ig_cap[i] + s.ig_int[i] + s.ig_con[i]);
+  s.im_oil     = M({ base: 180,  trend: 1.8,   season: 20,   noise: 15,  shock: 80, shockStart: 12, shockLen: 18, int: true });
+  s.im_non     = months.map((m, i) => s.im_tot[i] - s.im_oil[i]);
+  s.fr_tot     = M({ base: 5.2,  trend: 0.005, noise: 0.12,  dp: 2, floor: 3 });
+  s.fr_cov     = M({ base: 5.5,  trend: 0.003, noise: 0.15,  dp: 1, floor: 3 });
+  s.fdi_in     = M({ base: 120,  trend: 1.4,   season: 22,   noise: 18,  int: true, floor: 20 });
+  s.fdi_out    = M({ base: 22,   trend: 0.2,   season: 5,    noise: 4,   int: true, floor: 1 });
+  s.fdi_net    = months.map((m, i) => s.fdi_in[i] - s.fdi_out[i]);
+  s.ex_goods   = M({ base: 520,  trend: 2.8,   season: 80,   phase: -0.3, noise: 50, int: true });
+  s.ex_serv    = M({ base: 300,  trend: 2.0,   season: 70,   phase: -0.2, noise: 35, int: true });
+  s.ex_tot     = months.map((m, i) => s.ex_goods[i] + s.ex_serv[i]);
+  s.cur_trade  = months.map((m, i) => s.ex_goods[i] - s.ig_cap[i] - s.ig_int[i] - s.ig_con[i]);
+  s.cur_serv   = months.map((m, i) => s.ex_serv[i] - (s.sr_travel[i]*0.5 + s.sr_trans[i]*0.5));
+  s.cur_bal    = months.map((m, i) => s.cur_trade[i] + s.cur_serv[i] + Math.round((rand() - 0.5) * 80));
+
+  // ----- National Account Statistics -----
+  s.gpc_nom   = M({ base: 1180, growth: 0.006, noise: 15, int: true });
+  s.gpc_real  = M({ base: 1020, growth: 0.003, noise: 12, int: true });
+  s.gpc_grw   = M({ base: 4.9,  trend: -0.002, season: 0.4, noise: 0.5, dp: 2 });
+  s.gcp_tot   = M({ base: 14500, growth: 0.008, noise: 200, int: true });
+  s.gcp_agri  = M({ base: 26.5, trend: -0.01, noise: 0.3, dp: 1 });
+  s.gcp_ind   = M({ base: 28.2, trend: 0.02,  noise: 0.3, dp: 1 });
+  s.gcp_svc   = months.map((m, i) => +(100 - s.gcp_agri[i] - s.gcp_ind[i]).toFixed(1));
+  s.gkp_tot   = M({ base: 11800, growth: 0.004, noise: 120, int: true });
+  s.gkp_grw   = M({ base: 5.2,  trend: -0.001, season: 0.35, noise: 0.4, dp: 2 });
+  s.gkp_agri  = M({ base: 3100, growth: 0.003, noise: 40, int: true });
+
+  // ----- Financial Sector Indicators -----
+  s.smr_ir    = M({ base: 8.2,  trend: 0.02,  noise: 0.5, dp: 2 });
+  s.smr_fx    = M({ base: 6.5,  trend: 0.015, noise: 0.6, dp: 2 });
+  s.smr_nop   = M({ base: 4.1,  noise: 0.7, dp: 2 });
+  s.liq_la    = M({ base: 32.5, trend: -0.04, noise: 1.5, dp: 1, floor: 20 });
+  s.liq_ltd   = M({ base: 78.0, trend: 0.08,  noise: 1.8, dp: 1 });
+  s.liq_lcr   = M({ base: 142,  trend: -0.12, noise: 5,   dp: 0, floor: 100 });
+  s.ep_roa    = M({ base: 2.6,  trend: 0.005, noise: 0.25, dp: 2 });
+  s.ep_roe    = M({ base: 15.8, trend: 0.02,  noise: 1.2, dp: 2 });
+  s.ep_nim    = M({ base: 6.9,  trend: -0.005,noise: 0.3, dp: 2 });
+  s.cap_core  = M({ base: 17.2, trend: 0.01,  noise: 0.5, dp: 1 });
+  s.cap_tot   = M({ base: 19.5, trend: 0.012, noise: 0.6, dp: 1 });
+  s.cap_t1    = M({ base: 16.8, trend: 0.01,  noise: 0.5, dp: 1 });
+  s.aq_npl    = M({ base: 7.5,  trend: -0.03, noise: 0.5, dp: 2, floor: 2 });
+  s.aq_prov   = M({ base: 58,   trend: 0.1,   noise: 2.5, dp: 1 });
+  s.aq_lngr   = M({ base: 9.5,  trend: 0.02,  season: 1.2, noise: 1.2, dp: 2 });
+
+  // ----- Prices and Interest Rates -----
+  s.p_tpi_x   = M({ base: 108,  trend: 0.15,  season: 2.5, noise: 1.5, dp: 1 });
+  s.p_tpi_m   = M({ base: 112,  trend: 0.25,  season: 3,   noise: 2,   shock: 8, shockStart: 12, shockLen: 18, dp: 1 });
+  s.p_tpi_t   = months.map((m, i) => +(100 * s.p_tpi_x[i] / s.p_tpi_m[i]).toFixed(1));
+  s.pr_head   = M({ base: 4.2,  season: 0.5,  noise: 0.8, shock: 3.6, shockStart: 12, shockLen: 18, dp: 2 });
+  s.pr_food   = M({ base: 4.0,  season: 0.7,  noise: 1.0, shock: 4.0, shockStart: 12, shockLen: 18, dp: 2 });
+  s.pr_energy = M({ base: 5.0,  season: 0.9,  noise: 1.8, shock: 8.0, shockStart: 10, shockLen: 18, dp: 2 });
+  s.pr_core   = M({ base: 3.4,  season: 0.3,  noise: 0.6, shock: 2.2, shockStart: 12, shockLen: 18, dp: 2 });
+  s.mi_prod   = M({ base: 106,  trend: 0.18,  season: 2.5, noise: 2, dp: 1 });
+  s.mi_pmi    = M({ base: 51,   trend: 0.02,  season: 1.5, noise: 1.2, dp: 1, floor: 40, cap: 65 });
+  s.mi_cap    = M({ base: 72,   trend: 0.04,  season: 1.8, noise: 1.5, dp: 1 });
+  s.ir_91     = M({ base: 4.2,  trend: 0.015, noise: 0.35, dp: 2 });
+  s.ir_182    = M({ base: 5.1,  trend: 0.018, noise: 0.35, dp: 2 });
+  s.ir_dep    = M({ base: 6.8,  trend: 0.01,  noise: 0.3,  dp: 2 });
+  s.ir_len    = M({ base: 15.9, trend: 0.015, noise: 0.45, dp: 2 });
+  s.fx_usd    = M({ base: 2310, trend: 3.5,   noise: 20, dp: 0 });
+  s.fx_eur    = M({ base: 2720, trend: 4.2,   noise: 28, dp: 0 });
+  s.fx_gbp    = M({ base: 3150, trend: 4.8,   noise: 35, dp: 0 });
+
+  // ----- Government Finance Statistics -----
+  s.gr_prog   = M({ base: 150,  trend: 0.8,   season: 60,  phase: 0.8, noise: 25, int: true, floor: 20 });
+  s.gr_proj   = M({ base: 180,  trend: 1.2,   season: 40,  phase: -0.3, noise: 22, int: true, floor: 30 });
+  s.gr_tot    = months.map((m, i) => s.gr_prog[i] + s.gr_proj[i]);
+  s.exp_rec   = M({ base: 1650, trend: 7,     season: 220, phase: -0.4, noise: 80, int: true });
+  s.exp_dev   = M({ base: 880,  trend: 5,     season: 150, phase: 0.6, noise: 60, int: true });
+  s.exp_int   = M({ base: 380,  trend: 2.2,   season: 40,  noise: 18, int: true });
+  s.dr_tax    = M({ base: 1720, trend: 9,     season: 240, phase: -0.5, noise: 90, int: true });
+  s.dr_ntax   = M({ base: 280,  trend: 1.2,   season: 60,  phase: 0.4, noise: 22, int: true });
+  s.dr_tot    = months.map((m, i) => s.dr_tax[i] + s.dr_ntax[i]);
+  s.ds_dom    = M({ base: 19200, growth: 0.008, noise: 80, int: true });
+  s.ds_ext    = M({ base: 26.5, growth: 0.006, noise: 0.2, dp: 1 });
+  s.ds_gdp    = M({ base: 41.5, trend: 0.08, noise: 0.8, dp: 1 });
+
+  return { months, series: s };
+}
+
+// ============================================================================
+// RESPONSIVE VIEWPORT HOOK
+// ============================================================================
+const useViewport = () => {
+  const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  useEffect(() => {
+    const onResize = () => setW(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return { width: w,
+           isMobile: w < 640,
+           isTablet: w >= 640 && w < 1024,
+           isDesktop: w >= 1024 };
+};
+
+// ============================================================================
+// DATA TRANSFORMATIONS
+// None / Log / First difference / Z-score / Robust-IQR
+//   + compound presets for ML
+//   + Kalman Filter (trend / cycle)
+//   + HP Filter      (trend / cycle)
+// ============================================================================
+
+// ---------------- Kalman smoother (Rauch–Tung–Striebel local-level) --------
+function kalmanSmooth(values) {
+  const n = values.length;
+  if (n === 0) return [];
+  const firstValid = values.findIndex(v => typeof v === 'number' && !isNaN(v));
+  if (firstValid === -1) return values.map(() => null);
+  const valid = values.filter(v => typeof v === 'number' && !isNaN(v));
+  const mean = valid.reduce((a,b) => a+b, 0) / valid.length;
+  const variance = valid.reduce((a,b) => a + (b-mean)*(b-mean), 0) / Math.max(1, valid.length - 1);
+  const R = Math.max(variance, 1e-8);
+  const Q = R * 0.002;
+  const xFilt = new Array(n), PFilt = new Array(n), xPred = new Array(n), PPred = new Array(n);
+  for (let i = 0; i < firstValid; i++) { xFilt[i] = null; PFilt[i] = null; }
+  xFilt[firstValid] = values[firstValid];
+  PFilt[firstValid] = R;
+  for (let t = firstValid + 1; t < n; t++) {
+    xPred[t] = xFilt[t-1];
+    PPred[t] = PFilt[t-1] + Q;
+    const yt = values[t];
+    if (typeof yt === 'number' && !isNaN(yt)) {
+      const K = PPred[t] / (PPred[t] + R);
+      xFilt[t] = xPred[t] + K * (yt - xPred[t]);
+      PFilt[t] = (1 - K) * PPred[t];
+    } else {
+      xFilt[t] = xPred[t]; PFilt[t] = PPred[t];
+    }
+  }
+  const xSmooth = new Array(n);
+  xSmooth[n-1] = xFilt[n-1];
+  for (let t = n - 2; t >= firstValid; t--) {
+    if (PPred[t+1] > 0) {
+      const A = PFilt[t] / PPred[t+1];
+      xSmooth[t] = xFilt[t] + A * (xSmooth[t+1] - xPred[t+1]);
+    } else {
+      xSmooth[t] = xFilt[t];
+    }
+  }
+  for (let i = 0; i < firstValid; i++) xSmooth[i] = null;
+  return xSmooth.map(v => v === null ? null : +v.toFixed(4));
+}
+
+// ---------------- Hodrick–Prescott filter -----------------------------------
+// Solves (I + λ·K'K)·τ = y  where K is the (n-2)×n second-difference matrix.
+// Lambda is chosen by frequency: Annual→100, Quarterly→1600, Monthly→14400.
+// Simple O(n³) Gaussian elimination — n ≤ 60, so runtime is trivial.
+function hpFilter(values, lambda = 14400) {
+  const n = values.length;
+  if (n < 4) return values.slice();
+  // Replace missing with linear interpolation so the linear system is well-posed
+  const y = values.slice().map(v => (typeof v === 'number' && !isNaN(v)) ? v : null);
+  for (let i = 0; i < n; i++) {
+    if (y[i] === null) {
+      let l = i - 1, r = i + 1;
+      while (l >= 0 && y[l] === null) l--;
+      while (r < n  && y[r] === null) r++;
+      if (l >= 0 && r < n)       y[i] = y[l] + ((y[r] - y[l]) * (i - l)) / (r - l);
+      else if (l >= 0)           y[i] = y[l];
+      else if (r < n)            y[i] = y[r];
+      else                       y[i] = 0;
+    }
+  }
+  // Build A = I + λ·K'K  (pentadiagonal, stored dense for simplicity)
+  const A = Array.from({ length: n }, () => new Array(n).fill(0));
+  for (let i = 0; i < n; i++) A[i][i] = 1;
+  for (let i = 0; i < n - 2; i++) {
+    const cols = [i, i + 1, i + 2];
+    const vals = [1, -2, 1];
+    for (let a = 0; a < 3; a++)
+      for (let b = 0; b < 3; b++)
+        A[cols[a]][cols[b]] += lambda * vals[a] * vals[b];
+  }
+  // Gaussian elimination on [A|y]
+  const M = A.map((row, i) => [...row, y[i]]);
+  for (let k = 0; k < n; k++) {
+    let maxVal = Math.abs(M[k][k]);
+    let maxIdx = k;
+    for (let i = k + 1; i < n; i++) {
+      if (Math.abs(M[i][k]) > maxVal) { maxVal = Math.abs(M[i][k]); maxIdx = i; }
+    }
+    if (maxIdx !== k) { const tmp = M[k]; M[k] = M[maxIdx]; M[maxIdx] = tmp; }
+    if (Math.abs(M[k][k]) < 1e-12) continue;
+    for (let i = k + 1; i < n; i++) {
+      const factor = M[i][k] / M[k][k];
+      if (factor === 0) continue;
+      for (let j = k; j <= n; j++) M[i][j] -= factor * M[k][j];
+    }
+  }
+  const tau = new Array(n);
+  for (let i = n - 1; i >= 0; i--) {
+    let sum = M[i][n];
+    for (let j = i + 1; j < n; j++) sum -= M[i][j] * tau[j];
+    tau[i] = M[i][i] ? sum / M[i][i] : sum;
+  }
+  // Re-null the original NaNs
+  const out = tau.map((v, i) => (typeof values[i] === 'number' && !isNaN(values[i]))
+    ? +v.toFixed(4) : null);
+  return out;
+}
+
+function _applyBasic(values, method) {
+  if (method === 'Log') {
+    return values.map(v => (typeof v === 'number' && v > 0 ? +Math.log(v).toFixed(4) : null));
+  }
+  if (method === 'First difference' || method === 'Differencing') {
+    return values.map((v, i) => {
+      if (i === 0) return null;
+      const a = values[i-1]; const b = v;
+      if (typeof a !== 'number' || typeof b !== 'number') return null;
+      return +(b - a).toFixed(4);
+    });
+  }
+  if (method === 'Z-score') {
+    const valid = values.filter(v => typeof v === 'number' && !isNaN(v));
+    if (!valid.length) return values;
+    const mean = valid.reduce((a,b) => a+b, 0) / valid.length;
+    const variance = valid.reduce((a,b) => a + (b-mean)*(b-mean), 0) / valid.length;
+    const std = Math.sqrt(variance);
+    return std === 0 ? values.map(v => typeof v === 'number' ? 0 : null)
+                     : values.map(v => typeof v === 'number' ? +((v - mean) / std).toFixed(4) : null);
+  }
+  if (method === 'Robust (IQR)' || method === 'Robust-IQR') {
+    const sorted = [...values].filter(v => typeof v === 'number' && !isNaN(v)).sort((a,b) => a-b);
+    if (!sorted.length) return values;
+    const q = (p) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))];
+    const median = q(0.5), q1 = q(0.25), q3 = q(0.75);
+    const iqr = q3 - q1;
+    return iqr === 0 ? values.map(v => typeof v === 'number' ? 0 : null)
+                     : values.map(v => typeof v === 'number' ? +((v - median) / iqr).toFixed(4) : null);
+  }
+  return values;
+}
+
+function transformSeries(values, method, frequency = 'Monthly') {
+  if (!method || method === 'None' || values.length === 0) return values;
+
+  // Compound presets — Log first, then the second step
+  if (method === 'Log + Diff (forecasting)')
+    return _applyBasic(_applyBasic(values, 'Log'), 'First difference');
+  if (method === 'Log + Z-score (ML, few outliers)')
+    return _applyBasic(_applyBasic(values, 'Log'), 'Z-score');
+  if (method === 'Log + Robust-IQR (ML, many outliers)')
+    return _applyBasic(_applyBasic(values, 'Log'), 'Robust (IQR)');
+
+  // Kalman Filter — trend and cyclical component
+  if (method === 'Kalman Filter (trend)') return kalmanSmooth(values);
+  if (method === 'Kalman Filter (cycle)') {
+    const trend = kalmanSmooth(values);
+    return values.map((v, i) => (typeof v === 'number' && typeof trend[i] === 'number')
+      ? +(v - trend[i]).toFixed(4) : null);
+  }
+
+  // HP Filter — lambda by frequency (Ravn-Uhlig)
+  if (method === 'HP Filter (trend)' || method === 'HP Filter (cycle)') {
+    const lam = frequency === 'Annual' ? 100 : (frequency === 'Quarterly' ? 1600 : 14400);
+    const trend = hpFilter(values, lam);
+    if (method === 'HP Filter (trend)') return trend;
+    return values.map((v, i) => (typeof v === 'number' && typeof trend[i] === 'number')
+      ? +(v - trend[i]).toFixed(4) : null);
+  }
+
+  return _applyBasic(values, method);
+}
+
+function canShowDemographic(selectedIds) {
+  return selectedIds.some(id => INDICATORS.find(i => i.id === id)?.demographic);
+}
+
+// ============================================================================
+// FREQUENCY AGGREGATION
+// ============================================================================
+function aggregate(months, values, freq, method) {
+  if (freq === 'Monthly') {
+    return months.map((m, i) => ({ label: m.label, key: m.key, value: +values[i] }));
+  }
+  const grouped = {};
+  months.forEach((m, i) => {
+    const d = m.date;
+    const year = d.getFullYear();
+    let bucketKey, bucketLabel;
+    if (freq === 'Quarterly') {
+      const q = Math.floor(d.getMonth() / 3) + 1;
+      bucketKey = `${year}-Q${q}`;
+      bucketLabel = `${year} Q${q}`;
+    } else {
+      bucketKey = `${year}`;
+      bucketLabel = `${year}`;
+    }
+    if (!grouped[bucketKey]) grouped[bucketKey] = { label: bucketLabel, key: bucketKey, vals: [] };
+    grouped[bucketKey].vals.push(+values[i]);
+  });
+  return Object.values(grouped).map(b => {
+    let v;
+    if (method === 'sum')      v = b.vals.reduce((a, c) => a + c, 0);
+    else if (method === 'last')v = b.vals[b.vals.length - 1];
+    else                       v = b.vals.reduce((a, c) => a + c, 0) / b.vals.length;
+    return { label: b.label, key: b.key, value: +v.toFixed(3) };
+  });
+}
+
+// ============================================================================
+// PEAKS & TROUGHS DETECTION
+// ============================================================================
+function findExtrema(data, topN = 3) {
+  const peaks = [], troughs = [];
+  for (let i = 2; i < data.length - 2; i++) {
+    const v = data[i].value;
+    if (v > data[i-1].value && v > data[i+1].value && v >= data[i-2].value && v >= data[i+2].value) {
+      peaks.push({ idx: i, value: v });
+    }
+    if (v < data[i-1].value && v < data[i+1].value && v <= data[i-2].value && v <= data[i+2].value) {
+      troughs.push({ idx: i, value: v });
+    }
+  }
+  return {
+    peaks:   peaks.sort((a, b) => b.value - a.value).slice(0, topN).map(p => p.idx),
+    troughs: troughs.sort((a, b) => a.value - b.value).slice(0, topN).map(t => t.idx)
+  };
+}
+
+// ============================================================================
+// EXPORT HELPERS
+// ============================================================================
+function downloadCSV(filename, rows) {
+  const csv = rows.map(r => r.map(cell => {
+    const s = String(cell ?? '');
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function downloadSVGAsPNG(svgEl, filename) {
+  if (!svgEl) return;
+  const serializer = new XMLSerializer();
+  const clone = svgEl.cloneNode(true);
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  const svgStr = serializer.serializeToString(clone);
+  const svg64 = btoa(unescape(encodeURIComponent(svgStr)));
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    const scale = 2;
+    canvas.width = svgEl.clientWidth * scale;
+    canvas.height = svgEl.clientHeight * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(scale, scale);
+    ctx.drawImage(img, 0, 0, svgEl.clientWidth, svgEl.clientHeight);
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }, 'image/png');
+  };
+  img.src = 'data:image/svg+xml;base64,' + svg64;
+}
+
+// ============================================================================
+// BoT LOGO
+// Uses the official SVG hosted by Bank of Tanzania; when that request fails
+// (offline / CORS / CSP), it falls back to an inline circular seal.
+// ============================================================================
+function BotLogo({ size = 40, theme }) {
+  const [failed, setFailed] = useState(false);
+  const ring = theme?.heroAccent || BRAND.gold;
+  const fg   = theme?.heroText   || '#FFFFFF';
+
+  if (!failed) {
+    return (
+      <img
+        src="https://www.bot.go.tz/img/BankOfTanzania_logo.svg"
+        alt="Bank of Tanzania"
+        onError={() => setFailed(true)}
+        style={{
+          width: size,
+          height: size,
+          objectFit: 'contain',
+          display: 'block',
+          filter: theme?.heroBg && theme.heroBg !== '#FFFFFF'
+            ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.25))'
+            : 'none'
+        }}
+      />
+    );
+  }
+
+  // Fallback inline seal — respectful, not a copy of the real crest
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" aria-label="Bank of Tanzania">
+      <defs>
+        <clipPath id="botClip"><circle cx="50" cy="50" r="46" /></clipPath>
+      </defs>
+      <circle cx="50" cy="50" r="48" fill="#FFFFFF" stroke={ring} strokeWidth="2" />
+      <g clipPath="url(#botClip)">
+        <rect x="0" y="0"  width="100" height="33" fill="#1EB53A" opacity="0.12" />
+        <rect x="0" y="33" width="100" height="34" fill="#FCD116" opacity="0.14" />
+        <rect x="0" y="67" width="100" height="33" fill="#00A3DD" opacity="0.12" />
+      </g>
+      <circle cx="50" cy="50" r="46" fill="none" stroke={ring} strokeWidth="1" />
+      <circle cx="50" cy="50" r="38" fill="none" stroke={BRAND.navy} strokeWidth="0.6" opacity="0.55" />
+      <text x="50" y="47" textAnchor="middle"
+        style={{ fontFamily: 'Georgia, serif', fontSize: 18, fontWeight: 700, fill: BRAND.navy, letterSpacing: '0.06em' }}>
+        BoT
+      </text>
+      <text x="50" y="62" textAnchor="middle"
+        style={{ fontFamily: 'Georgia, serif', fontSize: 6, fill: BRAND.navy, letterSpacing: '0.22em' }}>
+        BENKI KUU
+      </text>
+      <text x="50" y="70" textAnchor="middle"
+        style={{ fontFamily: 'Georgia, serif', fontSize: 6, fill: BRAND.navy, letterSpacing: '0.22em' }}>
+        YA TANZANIA
+      </text>
+    </svg>
+  );
+}
+
+// ============================================================================
+// DROPDOWN
+// ============================================================================
+function Dropdown({ value, options, onChange, placeholder, theme, compact = false, width = 'auto' }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+  return (
+    <div className="relative" ref={ref} style={{ width }}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between w-full text-left transition-colors"
+        style={{
+          padding: compact ? '6px 10px' : '9px 12px',
+          fontSize: compact ? 12 : 13,
+          background: theme.surface,
+          color: value ? theme.text : theme.muted,
+          border: `1px solid ${theme.border}`,
+          borderRadius: 4
+        }}
+      >
+        <span className="truncate">{value || placeholder}</span>
+        <ChevronDown size={14} style={{ color: theme.muted, flexShrink: 0, marginLeft: 8 }} />
+      </button>
+      {open && (
+        <div
+          className="absolute left-0 right-0 mt-1 overflow-auto z-50"
+          style={{
+            maxHeight: 240,
+            background: theme.surface,
+            border: `1px solid ${theme.border}`,
+            borderRadius: 4,
+            boxShadow: '0 4px 14px rgba(0,0,0,0.12)'
+          }}
+        >
+          {options.map(opt => (
+            <button
+              key={opt}
+              onClick={() => { onChange(opt); setOpen(false); }}
+              className="block w-full text-left transition-colors"
+              style={{
+                padding: '8px 12px',
+                fontSize: 13,
+                color: theme.text,
+                background: value === opt ? theme.border : 'transparent'
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = theme.border}
+              onMouseLeave={e => e.currentTarget.style.background = value === opt ? theme.border : 'transparent'}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// MULTI-SELECT (GROUPED BY TOPIC)
+// Variables are listed under their topic (topic acts as a read-only header).
+// This replaces the previous "Topic dropdown + Variable multi-select" flow.
+// ============================================================================
+function MultiSelect({ selected, options, onChange, placeholder, theme, maxHeight = 260 }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  // Group options by topic
+  const grouped = useMemo(() => {
+    const g = {};
+    options.forEach(o => {
+      const key = o.topic || 'Other';
+      if (!g[key]) g[key] = [];
+      g[key].push(o);
+    });
+    // Keep insertion order
+    return g;
+  }, [options]);
+
+  const filterFn = (o) => o.name.toLowerCase().includes(q.toLowerCase())
+                       || (o.topic || '').toLowerCase().includes(q.toLowerCase());
+
+  const toggle = (id) => {
+    if (selected.includes(id)) onChange(selected.filter(x => x !== id));
+    else onChange([...selected, id]);
+  };
+
+  const selectAllInTopic = (topic) => {
+    const ids = grouped[topic].map(o => o.id);
+    const allIn = ids.every(id => selected.includes(id));
+    if (allIn) onChange(selected.filter(x => !ids.includes(x)));
+    else onChange(Array.from(new Set([...selected, ...ids])));
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between w-full text-left"
+        style={{
+          padding: '9px 12px', fontSize: 13,
+          background: theme.surface, color: theme.text,
+          border: `1px solid ${theme.border}`, borderRadius: 4
+        }}
+      >
+        <span className="truncate">
+          {selected.length === 0
+            ? <span style={{ color: theme.muted }}>{placeholder}</span>
+            : <span>{selected.length} selected</span>}
+        </span>
+        <ChevronDown size={14} style={{ color: theme.muted }} />
+      </button>
+      {open && (
+        <div
+          className="absolute left-0 right-0 mt-1 z-50 flex flex-col"
+          style={{
+            background: theme.surface,
+            border: `1px solid ${theme.border}`,
+            borderRadius: 4,
+            boxShadow: '0 4px 14px rgba(0,0,0,0.12)'
+          }}
+        >
+          <div className="flex items-center gap-2" style={{ padding: 8, borderBottom: `1px solid ${theme.border}` }}>
+            <Search size={13} style={{ color: theme.muted }} />
+            <input
+              autoFocus
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              placeholder="Search variables or topics…"
+              className="flex-1 outline-none bg-transparent"
+              style={{ fontSize: 12, color: theme.text }}
+            />
+          </div>
+          <div className="overflow-auto" style={{ maxHeight }}>
+            {Object.entries(grouped).map(([topic, items]) => {
+              const visible = items.filter(filterFn);
+              if (visible.length === 0) return null;
+              const allIn = visible.every(o => selected.includes(o.id));
+              return (
+                <div key={topic}>
+                  <button
+                    onClick={() => selectAllInTopic(topic)}
+                    className="flex items-center justify-between w-full text-left"
+                    style={{
+                      padding: '6px 10px',
+                      fontSize: 10,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                      fontWeight: 600,
+                      color: theme.muted,
+                      background: theme.bg,
+                      borderTop: `1px solid ${theme.border}`,
+                      cursor: 'pointer'
+                    }}
+                    title={allIn ? 'Deselect all in topic' : 'Select all in topic'}
+                  >
+                    <span>{topic}</span>
+                    <span style={{ fontSize: 9, color: theme.accent }}>
+                      {allIn ? '✓ all' : `${visible.length}`}
+                    </span>
+                  </button>
+                  {visible.map(o => (
+                    <button
+                      key={o.id}
+                      onClick={() => toggle(o.id)}
+                      className="flex items-center gap-2 w-full text-left transition-colors"
+                      style={{ padding: '7px 12px 7px 18px', fontSize: 12, color: theme.text }}
+                      onMouseEnter={e => e.currentTarget.style.background = theme.border}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <span
+                        className="flex items-center justify-center"
+                        style={{
+                          width: 14, height: 14,
+                          border: `1.5px solid ${selected.includes(o.id) ? theme.accent : theme.border}`,
+                          background: selected.includes(o.id) ? theme.accent : 'transparent',
+                          borderRadius: 2, flexShrink: 0
+                        }}
+                      >
+                        {selected.includes(o.id) && <Check size={10} color="#FFFFFF" strokeWidth={3} />}
+                      </span>
+                      <span className="truncate" style={{ flex: 1 }}>{o.name}</span>
+                      <span style={{ fontSize: 10, color: theme.muted }}>{o.unit}</span>
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+          {selected.length > 0 && (
+            <div style={{ padding: 6, borderTop: `1px solid ${theme.border}`, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {selected.map(id => {
+                const ind = options.find(o => o.id === id);
+                return ind ? (
+                  <span key={id} className="inline-flex items-center gap-1"
+                    style={{ fontSize: 10, padding: '2px 6px', background: theme.accent, color: '#FFFFFF', borderRadius: 2 }}>
+                    {ind.name}
+                    <button onClick={(e) => { e.stopPropagation(); toggle(id); }}><X size={10} /></button>
+                  </span>
+                ) : null;
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Label({ children, theme }) {
+  return (
+    <div style={{
+      fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em',
+      color: theme.muted, marginBottom: 6, fontWeight: 600
+    }}>{children}</div>
+  );
+}
+
+// ============================================================================
+// DATE RANGE PICKER  —  MS-Office-style month grid calendar wizard
+// Data is monthly, so the grid shows 12 months of a year at a time.
+// Two "sides" — Start and End — are picked by clicking month cells.
+// ============================================================================
+function keyToYearMonth(key) {
+  const [y, m] = key.split('-').map(Number);
+  return { year: y, month: m };
+}
+function yearMonthToKey(y, m) {
+  return `${y}-${String(m).padStart(2, '0')}`;
+}
+function keyCmp(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
+function keyLabel(key) {
+  const { year, month } = keyToYearMonth(key);
+  const d = new Date(year, month - 1, 1);
+  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
+// Single-date month picker. Renders a button + a popover calendar.
+// The popover uses position:fixed so it escapes any parent stacking
+// context and always paints above surrounding content (incl. charts).
+// Two instances are used side-by-side for "Start date" and "End date".
+function DatePicker({ value, monthKeys, onChange, theme, label = 'Date', minKey, maxKey }) {
+  const [open, setOpen] = useState(false);
+  const [year, setYear] = useState(() => keyToYearMonth(value).year);
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
+  const btnRef = useRef(null);
+  const popRef = useRef(null);
+
+  // Close on outside click
+  useEffect(() => {
+    const h = (e) => {
+      if (popRef.current && popRef.current.contains(e.target)) return;
+      if (btnRef.current && btnRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  // Reposition on open / scroll / resize
+  useEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const r = btnRef.current?.getBoundingClientRect();
+      if (!r) return;
+      setCoords({ top: r.bottom + 4, left: r.left, width: r.width });
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open]);
+
+  // Follow the selected value if it changes externally
+  useEffect(() => { setYear(keyToYearMonth(value).year); }, [value]);
+
+  const { minYear, maxYear } = useMemo(() => {
+    if (!monthKeys.length) return { minYear: 2020, maxYear: 2030 };
+    const years = monthKeys.map(k => keyToYearMonth(k).year);
+    return { minYear: Math.min(...years), maxYear: Math.max(...years) };
+  }, [monthKeys]);
+  const availableSet = useMemo(() => new Set(monthKeys), [monthKeys]);
+
+  const pick = (y, m) => {
+    const k = yearMonthToKey(y, m);
+    if (!availableSet.has(k)) return;
+    if (minKey && keyCmp(k, minKey) < 0) return;
+    if (maxKey && keyCmp(k, maxKey) > 0) return;
+    onChange(k);
+    setOpen(false);
+  };
+
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between w-full text-left"
+        style={{
+          padding: '9px 12px', fontSize: 13,
+          background: theme.surface, color: theme.text,
+          border: `1px solid ${theme.border}`, borderRadius: 4
+        }}
+      >
+        <span className="flex items-center gap-2">
+          <CalendarIcon size={13} style={{ color: theme.muted }} />
+          <span>{keyLabel(value)}</span>
+        </span>
+        <ChevronDown size={14} style={{ color: theme.muted }} />
+      </button>
+
+      {open && (
+        <div
+          ref={popRef}
+          style={{
+            position: 'fixed',
+            top: coords.top,
+            left: coords.left,
+            minWidth: Math.max(coords.width, 220),
+            zIndex: 9000,
+            background: theme.surface,
+            border: `1px solid ${theme.border}`,
+            borderRadius: 4,
+            boxShadow: '0 10px 28px rgba(0,0,0,0.22)'
+          }}
+        >
+          <div style={{
+            padding: '6px 10px',
+            borderBottom: `1px solid ${theme.border}`,
+            fontSize: 10, color: theme.muted,
+            textTransform: 'uppercase', letterSpacing: '0.08em'
+          }}>
+            {label}
+          </div>
+
+          <div style={{ padding: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <button
+                onClick={() => year > minYear && setYear(year - 1)}
+                disabled={year <= minYear}
+                style={{
+                  background: 'transparent',
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: 3,
+                  padding: '3px 6px',
+                  cursor: year > minYear ? 'pointer' : 'not-allowed',
+                  color: year > minYear ? theme.text : theme.muted,
+                  display: 'flex'
+                }}
+              ><ChevronLeft size={12} /></button>
+              <div style={{ fontSize: 13, fontWeight: 600, color: theme.text, fontFamily: 'Georgia, serif' }}>
+                {year}
+              </div>
+              <button
+                onClick={() => year < maxYear && setYear(year + 1)}
+                disabled={year >= maxYear}
+                style={{
+                  background: 'transparent',
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: 3,
+                  padding: '3px 6px',
+                  cursor: year < maxYear ? 'pointer' : 'not-allowed',
+                  color: year < maxYear ? theme.text : theme.muted,
+                  display: 'flex'
+                }}
+              ><ChevronRight size={12} /></button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
+              {monthNames.map((mn, idx) => {
+                const m = idx + 1;
+                const k = yearMonthToKey(year, m);
+                const available = availableSet.has(k)
+                                && (!minKey || keyCmp(k, minKey) >= 0)
+                                && (!maxKey || keyCmp(k, maxKey) <= 0);
+                const selected = k === value;
+                return (
+                  <button
+                    key={m}
+                    onClick={() => pick(year, m)}
+                    disabled={!available}
+                    style={{
+                      padding: '8px 0',
+                      fontSize: 11,
+                      fontWeight: selected ? 700 : 400,
+                      background: selected ? theme.accent : 'transparent',
+                      color: selected ? (theme.buttonText || '#FFFFFF')
+                           : (available ? theme.text : theme.muted),
+                      border: `1px solid ${selected ? theme.accent : theme.border}`,
+                      borderRadius: 3,
+                      cursor: available ? 'pointer' : 'not-allowed',
+                      opacity: available ? 1 : 0.35
+                    }}
+                  >
+                    {mn}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ============================================================================
+// COLOR PALETTE EDITOR — swatch grid with native color pickers + hex readout
+// User can pick a preset OR customise each swatch individually. Hex codes
+// are displayed beneath each swatch; clicking a swatch opens the native picker.
+// ============================================================================
+// ---------- Colour conversion helpers ------------------------------------
+function hexToRgb(hex) {
+  const h = (hex || '').replace(/^#/, '');
+  const norm = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  if (!/^[0-9A-Fa-f]{6}$/.test(norm)) return { r: 0, g: 0, b: 0 };
+  return {
+    r: parseInt(norm.substring(0, 2), 16),
+    g: parseInt(norm.substring(2, 4), 16),
+    b: parseInt(norm.substring(4, 6), 16)
+  };
+}
+function rgbToHex(r, g, b) {
+  const clamp = v => Math.max(0, Math.min(255, Math.round(+v || 0)));
+  const to = v => clamp(v).toString(16).padStart(2, '0').toUpperCase();
+  return '#' + to(r) + to(g) + to(b);
+}
+function normalizeHex(s) {
+  let h = (s || '').trim().replace(/^#/, '');
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  if (!/^[0-9A-Fa-f]{6}$/.test(h)) return null;
+  return '#' + h.toUpperCase();
+}
+
+// ============================================================================
+// COLOUR PICKER MODAL (MS-Word style)
+//
+// Renders as a FULL-SCREEN modal with a dim backdrop, guaranteed to paint
+// above all page content (z-index 10000, position: fixed). Shows three
+// panels in one view so nothing is cut off:
+//   1. Theme colours — every preset palette, one row of swatch buttons each
+//   2. Standard colours — 16 common design colours
+//   3. Custom colour — native colour wheel + HEX field + R/G/B fields;
+//      both codes are always displayed in a dual readout.
+//
+// The top of the modal has a Series selector so the user can switch which
+// series' colour is being edited without closing the modal. Changes apply
+// live to the chart; "Done" closes the modal.
+// ============================================================================
+const STANDARD_COLORS = [
+  '#000000', '#434343', '#666666', '#999999', '#CCCCCC', '#FFFFFF',
+  '#C00000', '#E67E22', '#F1C40F', '#2ECC71', '#16A085', '#1F3864',
+  '#3498DB', '#6A1B9A', '#E91E63', '#795548'
+];
+
+function ColorPickerModal({ colors, activeIndex, onChangeColors, onChangeActive, onClose, theme }) {
+  const hex = normalizeHex(colors[activeIndex]) || '#000000';
+  const rgb = hexToRgb(hex);
+  const [hexInput, setHexInput] = useState(hex);
+  const [r, setR] = useState(rgb.r);
+  const [g, setG] = useState(rgb.g);
+  const [b, setB] = useState(rgb.b);
+
+  // Sync inputs when the active series changes, or when the committed colour
+  // changes from outside (e.g., preset clicked)
+  useEffect(() => {
+    setHexInput(hex);
+    const v = hexToRgb(hex);
+    setR(v.r); setG(v.g); setB(v.b);
+  }, [hex]);
+
+  const setActiveColor = (c) => {
+    const norm = normalizeHex(c);
+    if (!norm) return;
+    const next = colors.slice();
+    next[activeIndex] = norm;
+    onChangeColors(next);
+  };
+
+  const onHexField = (e) => {
+    const v = e.target.value;
+    setHexInput(v);
+    const norm = normalizeHex(v);
+    if (norm) setActiveColor(norm);
+  };
+  const onRgbField = (ch, v) => {
+    const n = Math.max(0, Math.min(255, parseInt(v, 10) || 0));
+    const nr = ch === 'r' ? n : r;
+    const ng = ch === 'g' ? n : g;
+    const nb = ch === 'b' ? n : b;
+    setR(nr); setG(ng); setB(nb);
+    setActiveColor(rgbToHex(nr, ng, nb));
+  };
+
+  // Close on Escape
+  useEffect(() => {
+    const h = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [onClose]);
+
+  const rowLabelStyle = {
+    fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em',
+    color: theme.muted, fontWeight: 600, marginBottom: 6
+  };
+  const numInputStyle = {
+    flex: 1, fontSize: 12, padding: '5px 6px',
+    background: theme.bg, color: theme.text,
+    border: `1px solid ${theme.border}`, borderRadius: 3,
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+    textAlign: 'center', minWidth: 0
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 10000,
+        background: 'rgba(10, 14, 24, 0.55)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 20,
+        backdropFilter: 'blur(2px)'
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: theme.surface,
+          border: `1px solid ${theme.border}`,
+          borderRadius: 6,
+          boxShadow: '0 20px 50px rgba(0,0,0,0.35)',
+          width: 'min(520px, 100%)',
+          maxHeight: '90vh',
+          overflow: 'auto',
+          color: theme.text
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          padding: '12px 16px',
+          borderBottom: `1px solid ${theme.border}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+        }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, fontFamily: 'Georgia, serif' }}>
+              Chart colour picker
+            </div>
+            <div style={{ fontSize: 10, color: theme.muted, marginTop: 2 }}>
+              Pick a colour from a palette, a standard colour, or a custom HEX / RGB value.
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            style={{
+              background: 'transparent', border: 'none', color: theme.muted,
+              cursor: 'pointer', padding: 4, display: 'flex'
+            }}
+          ><X size={16} /></button>
+        </div>
+
+        {/* Series selector */}
+        <div style={{ padding: '12px 16px', borderBottom: `1px solid ${theme.border}` }}>
+          <div style={rowLabelStyle}>Editing series</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {colors.map((c, i) => {
+              const active = i === activeIndex;
+              return (
+                <button
+                  key={i}
+                  onClick={() => onChangeActive(i)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '5px 10px',
+                    fontSize: 11,
+                    background: active ? theme.border : 'transparent',
+                    color: theme.text,
+                    border: `1px solid ${active ? theme.accent : theme.border}`,
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    fontWeight: active ? 600 : 400
+                  }}
+                >
+                  <span style={{
+                    display: 'inline-block', width: 12, height: 12,
+                    background: c, border: `1px solid rgba(0,0,0,0.2)`, borderRadius: 2
+                  }} />
+                  Series&nbsp;{i + 1}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Theme colours */}
+        <div style={{ padding: '12px 16px', borderBottom: `1px solid ${theme.border}` }}>
+          <div style={rowLabelStyle}>Theme colours (from preset palettes)</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {Object.entries(PALETTES).map(([name, cols]) => (
+              <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{
+                  fontSize: 10, color: theme.muted, width: 130, flexShrink: 0,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                }} title={name}>
+                  {name}
+                </div>
+                <div style={{ display: 'flex', gap: 2, flex: 1 }}>
+                  {cols.map((c, i) => {
+                    const norm = normalizeHex(c);
+                    const picked = norm === hex;
+                    const rr = hexToRgb(c);
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => setActiveColor(c)}
+                        title={`${(norm || c).toUpperCase()} · rgb(${rr.r}, ${rr.g}, ${rr.b})`}
+                        style={{
+                          flex: 1, height: 20, background: c,
+                          border: `2px solid ${picked ? theme.accent : 'rgba(0,0,0,0.12)'}`,
+                          cursor: 'pointer', borderRadius: 3, padding: 0
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Standard colours */}
+        <div style={{ padding: '12px 16px', borderBottom: `1px solid ${theme.border}` }}>
+          <div style={rowLabelStyle}>Standard colours</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 3 }}>
+            {STANDARD_COLORS.map((c, i) => {
+              const picked = normalizeHex(c) === hex;
+              const rr = hexToRgb(c);
+              return (
+                <button
+                  key={i}
+                  onClick={() => setActiveColor(c)}
+                  title={`${c} · rgb(${rr.r}, ${rr.g}, ${rr.b})`}
+                  style={{
+                    height: 24, background: c,
+                    border: `2px solid ${picked ? theme.accent : 'rgba(0,0,0,0.15)'}`,
+                    cursor: 'pointer', borderRadius: 3, padding: 0
+                  }}
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Custom colour */}
+        <div style={{ padding: '12px 16px' }}>
+          <div style={rowLabelStyle}>Custom colour</div>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'stretch' }}>
+            {/* Native wheel */}
+            <div style={{ position: 'relative', width: 96, flexShrink: 0 }}>
+              <input
+                type="color"
+                value={hex}
+                onChange={(e) => setActiveColor(e.target.value.toUpperCase())}
+                style={{
+                  position: 'absolute', inset: 0, width: '100%', height: '100%',
+                  opacity: 0, cursor: 'pointer', border: 0, padding: 0
+                }}
+                aria-label="Open colour wheel"
+              />
+              <div style={{
+                width: '100%', height: 72, background: hex,
+                border: `1px solid ${theme.border}`, borderRadius: 4,
+                boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.22)',
+                pointerEvents: 'none'
+              }} />
+              <div style={{
+                fontSize: 9, color: theme.muted, textAlign: 'center', marginTop: 4,
+                textTransform: 'uppercase', letterSpacing: '0.08em'
+              }}>
+                Click for wheel
+              </div>
+            </div>
+
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {/* HEX */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <label style={{ fontSize: 11, color: theme.muted, width: 34, fontWeight: 600 }}>Hex</label>
+                <input
+                  value={hexInput}
+                  onChange={onHexField}
+                  spellCheck={false}
+                  style={{
+                    flex: 1, fontSize: 12, padding: '5px 8px',
+                    background: theme.bg, color: theme.text,
+                    border: `1px solid ${theme.border}`, borderRadius: 3,
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                    textTransform: 'uppercase', letterSpacing: '0.04em'
+                  }}
+                />
+              </div>
+              {/* RGB */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <label style={{ fontSize: 11, color: theme.muted, width: 34, fontWeight: 600 }}>RGB</label>
+                <input type="number" value={r} min="0" max="255"
+                  onChange={(e) => onRgbField('r', e.target.value)} style={numInputStyle} title="Red 0–255" />
+                <input type="number" value={g} min="0" max="255"
+                  onChange={(e) => onRgbField('g', e.target.value)} style={numInputStyle} title="Green 0–255" />
+                <input type="number" value={b} min="0" max="255"
+                  onChange={(e) => onRgbField('b', e.target.value)} style={numInputStyle} title="Blue 0–255" />
+              </div>
+              {/* Dual-code readout */}
+              <div style={{
+                fontSize: 11, color: theme.muted, lineHeight: 1.4,
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                padding: '6px 8px', background: theme.bg,
+                border: `1px solid ${theme.border}`, borderRadius: 3
+              }}>
+                <div>HEX&nbsp;&nbsp;{hex}</div>
+                <div>RGB&nbsp;&nbsp;rgb({r}, {g}, {b})</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: '10px 16px',
+          borderTop: `1px solid ${theme.border}`,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10
+        }}>
+          <div style={{ fontSize: 10, color: theme.muted }}>
+            Changes apply to the chart immediately.
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              fontSize: 12, padding: '6px 18px', fontWeight: 600,
+              background: theme.accent, color: theme.buttonText || '#FFFFFF',
+              border: 'none', borderRadius: 4, cursor: 'pointer'
+            }}
+          >Done</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// COLOR PALETTE EDITOR (left-panel control — GLOBAL default palette only)
+// The left panel holds just the preset selector, a colour-strip preview, and
+// a reset button. Per-chart recolouring is handled by the "Color" button
+// in each ChartPanel's top-right corner (see ChartPanel below).
+// ============================================================================
+function ColorPaletteEditor({ colors, onChange, presetName, onPresetChange, theme }) {
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+        <Dropdown
+          value={presetName}
+          options={[...Object.keys(PALETTES), 'Custom']}
+          onChange={(v) => {
+            if (v === 'Custom') { onPresetChange('Custom'); }
+            else { onPresetChange(v); onChange(PALETTES[v].slice()); }
+          }}
+          theme={theme} compact
+        />
+      </div>
+      {/* Compact colour strip — informational preview of current default palette */}
+      <div style={{
+        display: 'flex', height: 10, borderRadius: 2, overflow: 'hidden',
+        border: `1px solid ${theme.border}`, marginBottom: 8
+      }}>
+        {colors.map((c, i) => (
+          <div key={i} style={{ flex: 1, background: c }} />
+        ))}
+      </div>
+      <button
+        onClick={() => { onChange(SERIES_COLORS.slice()); onPresetChange('Default (institutional)'); }}
+        style={{
+          width: '100%', fontSize: 10, padding: '5px 6px',
+          background: 'transparent', color: theme.text,
+          border: `1px solid ${theme.border}`, borderRadius: 3, cursor: 'pointer'
+        }}
+      >Reset default palette</button>
+      <div style={{
+        marginTop: 8, padding: 8,
+        background: theme.bg, borderRadius: 3,
+        border: `1px dashed ${theme.border}`,
+        fontSize: 10, color: theme.muted, lineHeight: 1.4,
+        display: 'flex', alignItems: 'start', gap: 6
+      }}>
+        <Info size={11} style={{ color: theme.accent, marginTop: 1, flexShrink: 0 }} />
+        <span>This is the default palette applied to every chart. To recolour an individual chart, click the <b>Color</b> button on that chart's top-right corner.</span>
+      </div>
+    </div>
+  );
+}
+
+
+// ============================================================================
+// CHART PANEL
+// NEW in V5:
+//   • Bottom-right button strip with "Line width" and "Axes" popovers
+//   • X-axis title and Y-axis title on every visualization
+//   • Configurable stroke width for Line / Area / Demographic
+// ============================================================================
+function ChartPanel({
+  unit, indicators, data, initialChartType, initialShowExtrema,
+  theme, title, subtitle, source, fontFamily, colors, frequency,
+  xAxisTitle, yAxisTitle
+}) {
+  const svgContainerRef = useRef(null);
+  const [dlOpen, setDlOpen] = useState(false);
+  const [chartType, setChartType] = useState(initialChartType || 'Line');
+  const [showExtrema, setShowExtrema] = useState(!!initialShowExtrema);
+  const [transform, setTransform] = useState('None');
+  const [showGrid, setShowGrid] = useState(true);
+
+  // NEW controls — per-panel
+  const [lineWidth, setLineWidth] = useState(2);
+  const [xTitle, setXTitle] = useState(xAxisTitle ?? '');
+  const [yTitle, setYTitle] = useState(yAxisTitle ?? unit ?? '');
+  const [xAngle, setXAngle] = useState(0);
+  const [yMin, setYMin]     = useState('');
+  const [yMax, setYMax]     = useState('');
+  const [swapAxes, setSwapAxes] = useState(false); // horizontal/vertical orientation for Bar chart
+
+  // Per-chart colour override state.
+  // Starts from the `colors` prop; auto-expands so each series has its own
+  // editable slot in the picker modal.
+  const buildInitialColors = () => {
+    const base = (colors && colors.length) ? colors.slice() : SERIES_COLORS.slice();
+    const n = Math.max(base.length, data.length || 1);
+    const out = [];
+    for (let i = 0; i < n; i++) out.push(base[i % base.length]);
+    return out;
+  };
+  const [localColors, setLocalColors] = useState(buildInitialColors);
+  // Re-sync when the upstream default palette changes
+  useEffect(() => { setLocalColors(buildInitialColors()); /* eslint-disable-next-line */ }, [colors]);
+  // Ensure palette length keeps up if the series count grows
+  useEffect(() => {
+    setLocalColors(cur => {
+      if (cur.length >= data.length) return cur;
+      const out = cur.slice();
+      for (let i = cur.length; i < data.length; i++) out.push(cur[i % Math.max(1, cur.length)] || '#808080');
+      return out;
+    });
+  }, [data.length]);
+
+  const [colorModalOpen, setColorModalOpen] = useState(false);
+  const [colorActiveIdx, setColorActiveIdx] = useState(0);
+
+  // Popover state for the two bottom-right buttons
+  const [lwOpen, setLwOpen]   = useState(false);
+  const [axOpen, setAxOpen]   = useState(false);
+  const lwRef = useRef(null), axRef = useRef(null);
+  useEffect(() => {
+    const h = (e) => {
+      if (lwRef.current && !lwRef.current.contains(e.target)) setLwOpen(false);
+      if (axRef.current && !axRef.current.contains(e.target)) setAxOpen(false);
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  const availableChartTypes = useMemo(() => {
+    const base = ['Line', 'Bar', 'Area', 'Pie'];
+    const selectedIds = data.map(d => d.id);
+    if (canShowDemographic(selectedIds)) base.push('Demographic');
+    return base;
+  }, [data]);
+  useEffect(() => {
+    if (!availableChartTypes.includes(chartType)) setChartType('Line');
+  }, [availableChartTypes, chartType]);
+
+  // Apply transformation per series — passes frequency through to HP filter
+  const transformedData = useMemo(() => {
+    if (transform === 'None') return data;
+    return data.map(d => {
+      const values = d.series.map(s => s.value);
+      const newVals = transformSeries(values, transform, frequency);
+      return { ...d, series: d.series.map((s, i) => ({ ...s, value: newVals[i] })) };
+    });
+  }, [data, transform, frequency]);
+
+  const logDisabled = useMemo(
+    () => data.some(d => d.series.some(s => typeof s.value === 'number' && s.value <= 0)),
+    [data]
+  );
+  const availableTransforms = [
+    'None',
+    'Log',
+    'First difference',
+    'Z-score',
+    'Robust (IQR)',
+    'Log + Diff (forecasting)',
+    'Log + Z-score (ML, few outliers)',
+    'Log + Robust-IQR (ML, many outliers)',
+    'Kalman Filter (trend)',
+    'Kalman Filter (cycle)',
+    'HP Filter (trend)',
+    'HP Filter (cycle)'
+  ];
+
+  const palette = (localColors && localColors.length) ? localColors : SERIES_COLORS;
+
+  const chartData = useMemo(() => {
+    if (!transformedData || transformedData.length === 0) return [];
+    const labels = transformedData[0].series.map(s => s.label);
+    return labels.map((lbl, i) => {
+      const row = { label: lbl };
+      transformedData.forEach(d => { row[d.id] = d.series[i]?.value; });
+      return row;
+    });
+  }, [transformedData]);
+
+  const extrema = useMemo(() => {
+    if (!showExtrema || chartType !== 'Line' || transformedData.length === 0) return null;
+    return transformedData.map(d => ({ id: d.id, ...findExtrema(d.series.filter(s => s.value !== null)) }));
+  }, [transformedData, showExtrema, chartType]);
+
+  const handleDownloadImage = (fmt) => {
+    const svg = svgContainerRef.current?.querySelector('svg');
+    if (!svg) return;
+    const safe = (title || 'chart').replace(/[^a-z0-9]+/gi, '_').toLowerCase();
+    if (fmt === 'PNG') {
+      downloadSVGAsPNG(svg, `${safe}.png`);
+    } else if (fmt === 'SVG') {
+      const serializer = new XMLSerializer();
+      const str = serializer.serializeToString(svg);
+      const blob = new Blob([str], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `${safe}.svg`; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } else if (fmt === 'PDF') {
+      window.print();
+    } else if (fmt === 'EMF') {
+      alert('EMF export is handled server-side in the production build.');
+    }
+    setDlOpen(false);
+  };
+
+  const handleDownloadData = (fmt, useTransformed) => {
+    const src = useTransformed ? transformedData : data;
+    const labels = src[0]?.series.map(s => s.label) || [];
+    const header = ['Period', ...src.map(d => d.name)];
+    const rows = labels.map((lbl, i) => [lbl, ...src.map(d => d.series[i]?.value ?? '')]);
+    const suffix = useTransformed ? `_${transform.replace(/[^a-z0-9]+/gi, '').toLowerCase()}` : '';
+    const safe = ((title || 'data') + suffix).replace(/[^a-z0-9]+/gi, '_').toLowerCase();
+    if (fmt === 'CSV')        downloadCSV(`${safe}.csv`, [header, ...rows]);
+    else if (fmt === 'Excel') downloadCSV(`${safe}.xls`, [header, ...rows]);
+    setDlOpen(false);
+  };
+
+  const isPie = chartType === 'Pie' || chartType === 'Demographic';
+
+  const pieData = useMemo(() => {
+    if (!isPie || transformedData.length === 0) return [];
+    return transformedData.map((d, idx) => ({
+      name: d.name.replace(/^Population — /, ''),
+      value: d.series[d.series.length - 1]?.value || 0,
+      color: palette[idx % palette.length]
+    }));
+  }, [transformedData, isPie, palette]);
+
+  const fmt = (v) => {
+    if (typeof v !== 'number') return v;
+    if (Math.abs(v) >= 1000) return v.toLocaleString('en-US', { maximumFractionDigits: 1 });
+    return v.toFixed(2);
+  };
+
+  const yDomain = useMemo(() => {
+    const mn = yMin !== '' && !isNaN(+yMin) ? +yMin : 'auto';
+    const mx = yMax !== '' && !isNaN(+yMax) ? +yMax : 'auto';
+    return [mn, mx];
+  }, [yMin, yMax]);
+
+  const renderChart = () => {
+    if (chartData.length === 0) return <div style={{ padding: 40, color: theme.muted, textAlign: 'center' }}>No data</div>;
+
+    const xAxisProps = {
+      stroke: theme.muted,
+      tick: { fill: theme.muted, fontSize: 10, fontFamily },
+      axisLine: { stroke: theme.border },
+      angle: xAngle,
+      textAnchor: xAngle !== 0 ? 'end' : 'middle',
+      height: xAngle !== 0 ? 50 : 30
+    };
+    const yAxisProps = {
+      stroke: theme.muted,
+      tick: { fill: theme.muted, fontSize: 10, fontFamily },
+      axisLine: { stroke: theme.border },
+      width: yTitle ? 64 : 50,
+      tickFormatter: fmt,
+      domain: yDomain
+    };
+
+    const xAxisLabel = xTitle ? {
+      value: xTitle, position: 'insideBottom', offset: -4,
+      style: { fill: theme.muted, fontSize: 10, fontFamily, fontWeight: 600 }
+    } : null;
+    const yAxisLabel = yTitle ? {
+      value: yTitle, angle: -90, position: 'insideLeft',
+      style: { fill: theme.muted, fontSize: 10, fontFamily, fontWeight: 600, textAnchor: 'middle' }
+    } : null;
+
+    if (isPie) {
+      return (
+        <PieChart>
+          <Pie
+            data={pieData}
+            dataKey="value"
+            nameKey="name"
+            cx="50%" cy="50%"
+            outerRadius="72%"
+            innerRadius={chartType === 'Demographic' ? '40%' : 0}
+            paddingAngle={2}
+            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+            labelLine={false}
+            stroke={theme.chartBg === 'transparent' ? '#FFFFFF' : theme.chartBg}
+          >
+            {pieData.map((e, i) => <Cell key={i} fill={e.color} />)}
+          </Pie>
+          <Tooltip contentStyle={{ background: theme.surface, border: `1px solid ${theme.border}`, fontSize: 12 }} />
+        </PieChart>
+      );
+    }
+
+    const bottomMargin = xTitle ? 28 : 10;
+    const leftMargin   = yTitle ? 14 : 0;
+
+    if (chartType === 'Bar') {
+      // "Swap axes" produces a horizontal bar chart
+      const layout = swapAxes ? 'vertical' : 'horizontal';
+      return (
+        <BarChart data={chartData} layout={layout}
+          margin={{ top: 10, right: 16, bottom: bottomMargin, left: leftMargin }}>
+          {showGrid && <CartesianGrid strokeDasharray="2 4" stroke={theme.border}
+            vertical={layout === 'vertical'} horizontal={layout === 'horizontal'} />}
+          {layout === 'horizontal' ? (
+            <>
+              <XAxis dataKey="label" {...xAxisProps} interval="preserveStartEnd" label={xAxisLabel} />
+              <YAxis {...yAxisProps} label={yAxisLabel} />
+            </>
+          ) : (
+            <>
+              <XAxis type="number" {...yAxisProps} label={xAxisLabel} />
+              <YAxis type="category" dataKey="label" {...xAxisProps} width={90} label={yAxisLabel} />
+            </>
+          )}
+          <Tooltip contentStyle={{ background: theme.surface, border: `1px solid ${theme.border}`, fontSize: 12 }} formatter={fmt} />
+          <Legend wrapperStyle={{ fontSize: 'clamp(9px, 2.5cqi, 11px)', fontFamily }} />
+          {transformedData.map((d, i) => (
+            <Bar key={d.id} dataKey={d.id} name={d.name} fill={palette[i % palette.length]} radius={[2, 2, 0, 0]} />
+          ))}
+        </BarChart>
+      );
+    }
+
+    if (chartType === 'Area') {
+      return (
+        <AreaChart data={chartData} margin={{ top: 10, right: 16, bottom: bottomMargin, left: leftMargin }}>
+          {showGrid && <CartesianGrid strokeDasharray="2 4" stroke={theme.border} vertical={false} />}
+          <XAxis dataKey="label" {...xAxisProps} interval="preserveStartEnd" label={xAxisLabel} />
+          <YAxis {...yAxisProps} label={yAxisLabel} />
+          <Tooltip contentStyle={{ background: theme.surface, border: `1px solid ${theme.border}`, fontSize: 12 }} formatter={fmt} />
+          <Legend wrapperStyle={{ fontSize: 'clamp(9px, 2.5cqi, 11px)', fontFamily }} />
+          {transformedData.map((d, i) => (
+            <Area key={d.id} type="monotone" dataKey={d.id} name={d.name}
+              stroke={palette[i % palette.length]}
+              fill={palette[i % palette.length]}
+              fillOpacity={0.18} strokeWidth={lineWidth} />
+          ))}
+        </AreaChart>
+      );
+    }
+
+    // Line (default)
+    return (
+      <ComposedChart data={chartData} margin={{ top: 10, right: 16, bottom: bottomMargin, left: leftMargin }}>
+        {showGrid && <CartesianGrid strokeDasharray="2 4" stroke={theme.border} vertical={false} />}
+        <XAxis dataKey="label" {...xAxisProps} interval="preserveStartEnd" label={xAxisLabel} />
+        <YAxis {...yAxisProps} label={yAxisLabel} />
+        {extrema && extrema.flatMap((ex, si) => {
+          const bands = [];
+          const lastIdx = chartData.length - 1;
+          const bandFor = (idx, kind) => {
+            const left  = chartData[Math.max(0, idx - 1)]?.label;
+            const right = chartData[Math.min(lastIdx, idx + 1)]?.label;
+            if (left == null || right == null) return null;
+            return (
+              <ReferenceArea
+                key={`${kind}-${si}-${idx}`}
+                x1={left} x2={right}
+                fill="#EDEDED"
+                fillOpacity={0.4}
+                strokeOpacity={0}
+                ifOverflow="visible"
+              />
+            );
+          };
+          ex.peaks.forEach(idx => { const b = bandFor(idx, 'p'); if (b) bands.push(b); });
+          ex.troughs.forEach(idx => { const b = bandFor(idx, 't'); if (b) bands.push(b); });
+          return bands;
+        })}
+        <Tooltip contentStyle={{ background: theme.surface, border: `1px solid ${theme.border}`, fontSize: 12 }} formatter={fmt} />
+        <Legend wrapperStyle={{ fontSize: 'clamp(9px, 2.5cqi, 11px)', fontFamily }} />
+        {transformedData.map((d, i) => (
+          <Line key={d.id} type="monotone" dataKey={d.id} name={d.name}
+            stroke={palette[i % palette.length]}
+            strokeWidth={lineWidth} dot={false} activeDot={{ r: Math.max(3, lineWidth + 2) }}
+            connectNulls={false} />
+        ))}
+      </ComposedChart>
+    );
+  };
+
+  return (
+    <div style={{
+      background: theme.surface,
+      border: `1px solid ${theme.border}`,
+      borderRadius: 6,
+      overflow: 'hidden',
+      display: 'flex', flexDirection: 'column',
+      containerType: 'inline-size',
+      position: 'relative'
+    }}>
+      {/* Header */}
+      <div style={{ padding: '10px 14px', borderBottom: `1px solid ${theme.border}`,
+        display: 'flex', alignItems: 'start', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 180px', minWidth: 0 }}>
+          {title && <div style={{ fontSize: 'clamp(11px, 3cqi, 15px)', fontWeight: 600, color: theme.text, fontFamily, lineHeight: 1.25 }}>{title}</div>}
+          {subtitle && <div style={{ fontSize: 'clamp(9px, 2.3cqi, 12px)', color: theme.muted, marginTop: 2, fontFamily, lineHeight: 1.3 }}>{subtitle}</div>}
+          <div style={{ fontSize: 'clamp(8px, 1.8cqi, 10px)', color: theme.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Unit: {unit}{transform !== 'None' ? ` · ${transform}` : ''}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          {chartType === 'Line' && (
+            <button
+              onClick={() => setShowExtrema(!showExtrema)}
+              title={showExtrema ? 'Hide peaks & troughs' : 'Show peaks & troughs'}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                padding: '5px 8px', fontSize: 10,
+                background: showExtrema ? theme.accent : 'transparent',
+                color: showExtrema ? (theme.buttonText || '#FFFFFF') : theme.text,
+                border: `1px solid ${showExtrema ? theme.accent : theme.border}`,
+                borderRadius: 4, cursor: 'pointer'
+              }}
+            >
+              <Activity size={10} /> Peaks
+            </button>
+          )}
+          <button
+            onClick={() => setShowGrid(!showGrid)}
+            title={showGrid ? 'Hide chart gridlines' : 'Show chart gridlines'}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '5px 8px', fontSize: 10,
+              background: showGrid ? theme.accent : 'transparent',
+              color: showGrid ? (theme.buttonText || '#FFFFFF') : theme.text,
+              border: `1px solid ${showGrid ? theme.accent : theme.border}`,
+              borderRadius: 4, cursor: 'pointer'
+            }}
+          >
+            <Grid size={10} /> Grid
+          </button>
+          <div style={{ width: 108 }}>
+            <Dropdown
+              value={chartType}
+              options={availableChartTypes}
+              onChange={setChartType}
+              theme={theme} compact
+            />
+          </div>
+          <div style={{ width: 178 }}>
+            <Dropdown
+              value={(transform.startsWith('Log') && logDisabled) ? 'None' : transform}
+              options={availableTransforms.map(t => (t.startsWith('Log') && logDisabled && !t.startsWith('Log Filter')) ? `${t} (n/a)` : t)}
+              onChange={(v) => setTransform(v.endsWith('(n/a)') ? 'None' : v)}
+              theme={theme} compact
+            />
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setDlOpen(!dlOpen)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                padding: '5px 10px', fontSize: 11,
+                background: 'transparent', color: theme.text,
+                border: `1px solid ${theme.border}`, borderRadius: 4
+              }}
+            >
+              <Download size={12} /> Export
+            </button>
+            {dlOpen && (
+              <div style={{
+                position: 'absolute', right: 0, top: '100%', marginTop: 4,
+                background: theme.surface, border: `1px solid ${theme.border}`,
+                borderRadius: 4, boxShadow: '0 4px 14px rgba(0,0,0,0.14)', zIndex: 40, minWidth: 200
+              }}>
+                <div style={{ padding: '6px 10px', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em', color: theme.muted, borderBottom: `1px solid ${theme.border}` }}>Chart image</div>
+                {['PNG', 'SVG', 'PDF', 'EMF'].map(f => (
+                  <button key={f} onClick={() => handleDownloadImage(f)}
+                    className="flex items-center gap-2 w-full text-left"
+                    style={{ padding: '6px 10px', fontSize: 12, color: theme.text }}
+                    onMouseEnter={e => e.currentTarget.style.background = theme.border}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <ImageIcon size={11} /> {f}
+                  </button>
+                ))}
+                <div style={{ padding: '6px 10px', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em', color: theme.muted, borderTop: `1px solid ${theme.border}`, borderBottom: `1px solid ${theme.border}` }}>Raw data</div>
+                {['CSV', 'Excel'].map(f => (
+                  <button key={`raw-${f}`} onClick={() => handleDownloadData(f, false)}
+                    className="flex items-center gap-2 w-full text-left"
+                    style={{ padding: '6px 10px', fontSize: 12, color: theme.text }}
+                    onMouseEnter={e => e.currentTarget.style.background = theme.border}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <FileSpreadsheet size={11} /> {f}
+                  </button>
+                ))}
+                {transform !== 'None' && (
+                  <>
+                    <div style={{ padding: '6px 10px', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em', color: theme.muted, borderTop: `1px solid ${theme.border}`, borderBottom: `1px solid ${theme.border}` }}>Transformed data · {transform}</div>
+                    {['CSV', 'Excel'].map(f => (
+                      <button key={`tr-${f}`} onClick={() => handleDownloadData(f, true)}
+                        className="flex items-center gap-2 w-full text-left"
+                        style={{ padding: '6px 10px', fontSize: 12, color: theme.text }}
+                        onMouseEnter={e => e.currentTarget.style.background = theme.border}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                        <Sigma size={11} /> {f}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Per-chart Color button — opens the full MS-Word-style modal */}
+          <button
+            onClick={() => { setColorActiveIdx(0); setColorModalOpen(true); }}
+            title="Change this chart's colours"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '5px 10px', fontSize: 11,
+              background: 'transparent', color: theme.text,
+              border: `1px solid ${theme.border}`, borderRadius: 4,
+              cursor: 'pointer'
+            }}
+          >
+            <PaletteIcon size={12} /> Color
+          </button>
+        </div>
+      </div>
+
+      {/* Chart area */}
+      <div ref={svgContainerRef} style={{
+        background: theme.chartBg === 'transparent' ? '#FFFFFF' : theme.chartBg,
+        padding: 10,
+        position: 'relative'
+      }}>
+        <div style={{ width: '100%', height: 300, fontFamily }}>
+          <ResponsiveContainer>{renderChart()}</ResponsiveContainer>
+        </div>
+        {source && (
+          <div style={{ fontSize: 'clamp(8px, 1.8cqi, 10px)', color: theme.muted, marginTop: 6, fontStyle: 'italic', fontFamily }}>
+            Source: {source}
+          </div>
+        )}
+
+        {/* ===== BOTTOM-RIGHT CONTROL STRIP (Line width + H/V axes) ===== */}
+        <div style={{
+          position: 'absolute', right: 10, bottom: source ? 24 : 10,
+          display: 'flex', gap: 4, zIndex: 5
+        }}>
+          {/* Line width */}
+          {(chartType === 'Line' || chartType === 'Area') && (
+            <div ref={lwRef} style={{ position: 'relative' }}>
+              <button
+                onClick={() => { setLwOpen(!lwOpen); setAxOpen(false); }}
+                title="Adjust line width"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  padding: '4px 8px', fontSize: 10,
+                  background: theme.surface, color: theme.text,
+                  border: `1px solid ${theme.border}`, borderRadius: 4,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.08)', cursor: 'pointer'
+                }}
+              >
+                <Minus size={11} strokeWidth={Math.max(1, lineWidth)} /> Line&nbsp;width
+                <span style={{ color: theme.muted, marginLeft: 2 }}>{lineWidth}px</span>
+              </button>
+              {lwOpen && (
+                <div style={{
+                  position: 'absolute', right: 0, bottom: '100%', marginBottom: 4, zIndex: 20,
+                  background: theme.surface, border: `1px solid ${theme.border}`,
+                  borderRadius: 4, boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
+                  padding: 8, minWidth: 180
+                }}>
+                  <div style={{ fontSize: 10, textTransform: 'uppercase',
+                    letterSpacing: '0.08em', color: theme.muted, marginBottom: 6 }}>
+                    Stroke width
+                  </div>
+                  {[1, 1.5, 2, 2.5, 3, 4].map(w => (
+                    <button key={w}
+                      onClick={() => { setLineWidth(w); setLwOpen(false); }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                        padding: '5px 6px', fontSize: 11,
+                        background: lineWidth === w ? theme.border : 'transparent',
+                        color: theme.text,
+                        border: 'none', borderRadius: 3, cursor: 'pointer'
+                      }}
+                      onMouseEnter={e => { if (lineWidth !== w) e.currentTarget.style.background = theme.bg; }}
+                      onMouseLeave={e => { if (lineWidth !== w) e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      <span style={{
+                        display: 'inline-block', width: 50, height: 0,
+                        borderTop: `${w}px solid ${theme.accent}`
+                      }} />
+                      <span>{w} px</span>
+                      {lineWidth === w && <Check size={11} style={{ marginLeft: 'auto', color: theme.accent }} />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* H & V axes */}
+          {!isPie && (
+            <div ref={axRef} style={{ position: 'relative' }}>
+              <button
+                onClick={() => { setAxOpen(!axOpen); setLwOpen(false); }}
+                title="Adjust horizontal & vertical axes"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  padding: '4px 8px', fontSize: 10,
+                  background: theme.surface, color: theme.text,
+                  border: `1px solid ${theme.border}`, borderRadius: 4,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.08)', cursor: 'pointer'
+                }}
+              >
+                <Sliders size={11} /> H&nbsp;&amp;&nbsp;V&nbsp;axes
+              </button>
+              {axOpen && (
+                <div style={{
+                  position: 'absolute', right: 0, bottom: '100%', marginBottom: 4, zIndex: 20,
+                  background: theme.surface, border: `1px solid ${theme.border}`,
+                  borderRadius: 4, boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
+                  padding: 10, minWidth: 260
+                }}>
+                  <div style={{ fontSize: 10, textTransform: 'uppercase',
+                    letterSpacing: '0.08em', color: theme.muted, marginBottom: 6 }}>
+                    Horizontal axis (X)
+                  </div>
+                  <input
+                    value={xTitle}
+                    onChange={e => setXTitle(e.target.value)}
+                    placeholder="X-axis title"
+                    style={{
+                      width: '100%', padding: '5px 7px', fontSize: 11,
+                      background: theme.bg, color: theme.text,
+                      border: `1px solid ${theme.border}`, borderRadius: 3, outline: 'none',
+                      marginBottom: 6
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+                    {[0, 30, 45, 90].map(a => (
+                      <button key={a}
+                        onClick={() => setXAngle(-a)}
+                        style={{
+                          flex: 1, fontSize: 10, padding: '3px 4px',
+                          background: -xAngle === a ? theme.accent : 'transparent',
+                          color: -xAngle === a ? (theme.buttonText || '#FFFFFF') : theme.text,
+                          border: `1px solid ${-xAngle === a ? theme.accent : theme.border}`,
+                          borderRadius: 3, cursor: 'pointer'
+                        }}
+                      >{a}°</button>
+                    ))}
+                  </div>
+
+                  <div style={{ fontSize: 10, textTransform: 'uppercase',
+                    letterSpacing: '0.08em', color: theme.muted, marginBottom: 6 }}>
+                    Vertical axis (Y)
+                  </div>
+                  <input
+                    value={yTitle}
+                    onChange={e => setYTitle(e.target.value)}
+                    placeholder="Y-axis title"
+                    style={{
+                      width: '100%', padding: '5px 7px', fontSize: 11,
+                      background: theme.bg, color: theme.text,
+                      border: `1px solid ${theme.border}`, borderRadius: 3, outline: 'none',
+                      marginBottom: 6
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                    <input
+                      value={yMin}
+                      onChange={e => setYMin(e.target.value)}
+                      placeholder="Y min"
+                      style={{
+                        flex: 1, padding: '5px 7px', fontSize: 11,
+                        background: theme.bg, color: theme.text,
+                        border: `1px solid ${theme.border}`, borderRadius: 3, outline: 'none'
+                      }}
+                    />
+                    <input
+                      value={yMax}
+                      onChange={e => setYMax(e.target.value)}
+                      placeholder="Y max"
+                      style={{
+                        flex: 1, padding: '5px 7px', fontSize: 11,
+                        background: theme.bg, color: theme.text,
+                        border: `1px solid ${theme.border}`, borderRadius: 3, outline: 'none'
+                      }}
+                    />
+                  </div>
+
+                  {chartType === 'Bar' && (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6,
+                      fontSize: 11, color: theme.text, cursor: 'pointer', marginBottom: 6 }}>
+                      <input type="checkbox" checked={swapAxes}
+                        onChange={e => setSwapAxes(e.target.checked)}
+                        style={{ accentColor: theme.accent }} />
+                      Swap axes (horizontal bars)
+                    </label>
+                  )}
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+                    <button
+                      onClick={() => {
+                        setXTitle(''); setYTitle(unit || '');
+                        setXAngle(0); setYMin(''); setYMax(''); setSwapAxes(false);
+                      }}
+                      style={{
+                        fontSize: 10, padding: '3px 8px',
+                        background: 'transparent', color: theme.text,
+                        border: `1px solid ${theme.border}`, borderRadius: 3, cursor: 'pointer'
+                      }}
+                    >Reset</button>
+                    <button
+                      onClick={() => setAxOpen(false)}
+                      style={{
+                        fontSize: 10, padding: '3px 10px',
+                        background: theme.accent, color: theme.buttonText || '#FFFFFF',
+                        border: 'none', borderRadius: 3, cursor: 'pointer'
+                      }}
+                    >Done</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {colorModalOpen && (
+        <ColorPickerModal
+          colors={localColors}
+          activeIndex={Math.min(colorActiveIdx, localColors.length - 1)}
+          onChangeColors={setLocalColors}
+          onChangeActive={setColorActiveIdx}
+          onClose={() => setColorModalOpen(false)}
+          theme={theme}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// MAIN APP
+// ============================================================================
+function App() {
+  const { isMobile, isTablet, isDesktop } = useViewport();
+
+  // Auth
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
+
+  // Theme
+  const [themeKey, setThemeKey] = useState('institutional');
+  const theme = THEMES[themeKey];
+
+  // Data (generate once)
+  const { months, series } = useMemo(() => generateData(), []);
+
+  // Tab / Variable selection  (Topic layer removed from the UI)
+  const [activeTab, setActiveTab] = useState('Payment Statistics');
+  const [selectedIndicators, setSelectedIndicators] = useState(['tiss_vol', 'tiss_val']);
+  const [unitFilter, setUnitFilter] = useState('All units');
+  const [startDate, setStartDate] = useState('2021-01');
+  const [endDate, setEndDate] = useState('2025-12');
+  const [frequency, setFrequency] = useState('Monthly');
+  const [location, setLocation] = useState('Tanzania');
+  const [chartType, setChartType] = useState('Line');
+  const [showExtrema, setShowExtrema] = useState(false);
+
+  // Chart annotation options
+  const [chartTitle, setChartTitle] = useState('TISS transactions');
+  const [chartSubtitle, setChartSubtitle] = useState('Volume and value of large-value transfers');
+  const [chartSource, setChartSource] = useState('Bank of Tanzania — synthetic demo dataset');
+  const [fontFamily, setFontFamily] = useState('"IBM Plex Sans", system-ui, sans-serif');
+
+  // NEW: default axis titles
+  const [xAxisTitle, setXAxisTitle] = useState('Period');
+  const [yAxisTitle, setYAxisTitle] = useState('');
+
+  // Visualize state
+  const [visualized, setVisualized] = useState(false);
+  const [gridMode, setGridMode] = useState('by_unit');
+  const [gridColsOverride, setGridColsOverride] = useState(null);
+
+  // NEW: color state — swatches + preset name
+  const [colorPalette, setColorPalette] = useState('Default (institutional)');
+  const [customColors, setCustomColors] = useState(PALETTES['Default (institutional)'].slice());
+
+  const monthOptions = useMemo(() => months.map(m => m.key), [months]);
+  const unitOptions = ['All units', ...Array.from(new Set(INDICATORS.map(i => i.unit)))];
+
+  // All indicators in the active tab — grouped by topic at render time
+  const indicatorOptions = useMemo(() => {
+    return INDICATORS.filter(i =>
+      i.category === activeTab &&
+      (unitFilter === 'All units' || i.unit === unitFilter));
+  }, [activeTab, unitFilter]);
+
+  const handleTabClick = (cat) => {
+    setActiveTab(cat);
+    // Default: pick the first topic's variables for a friendly start
+    const firstTopic = INDICATORS.find(i => i.category === cat)?.topic;
+    const ids = INDICATORS.filter(i => i.category === cat && i.topic === firstTopic).map(i => i.id);
+    setSelectedIndicators(ids);
+    setVisualized(false);
+  };
+
+  const handleVisualize = () => {
+    if (selectedIndicators.length === 0) return;
+    setVisualized(true);
+  };
+
+  const handleReset = () => {
+    setSelectedIndicators([]);
+    setUnitFilter('All units');
+    setStartDate('2021-01');
+    setEndDate('2025-12');
+    setFrequency('Monthly');
+    setLocation('Tanzania');
+    setVisualized(false);
+  };
+
+  // Build visualization data
+  const visData = useMemo(() => {
+    if (!visualized) return [];
+    const startIdx = months.findIndex(m => m.key === startDate);
+    const endIdx = months.findIndex(m => m.key === endDate);
+    const s = Math.max(0, startIdx);
+    const e = endIdx === -1 ? months.length - 1 : endIdx;
+    const slicedMonths = months.slice(s, e + 1);
+    return selectedIndicators.map(id => {
+      const meta = INDICATORS.find(i => i.id === id);
+      const vals = series[id].slice(s, e + 1);
+      const agg = aggregate(slicedMonths, vals, frequency, meta.aggregation);
+      return { id, name: meta.name, topic: meta.topic, unit: meta.unit,
+               aggregation: meta.aggregation, series: agg };
+    });
+  }, [visualized, selectedIndicators, startDate, endDate, frequency, months, series]);
+
+  const panels = useMemo(() => {
+    if (gridMode === 'per_indicator') {
+      return visData.map(d => ({ key: d.id, unit: d.unit, title: `${d.topic} — ${d.name}`, data: [d] }));
+    }
+    const g = {};
+    visData.forEach(d => { (g[d.unit] = g[d.unit] || []).push(d); });
+    return Object.entries(g).map(([unit, data]) => ({ key: unit, unit, title: null, data }));
+  }, [visData, gridMode]);
+
+  const minPanelWidth = useMemo(() => {
+    const n = panels.length;
+    if (n <= 1) return 0;
+    const span = visData[0]?.series.length || 0;
+    if (span <= 8)       return 240;
+    if (span <= 16)      return 320;
+    if (span <= 36)      return 400;
+    return 480;
+  }, [panels, visData]);
+
+  // ------------------- LOGIN SCREEN -------------------
+  if (!loggedIn) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: `linear-gradient(135deg, ${BRAND.navy} 0%, #0A1F44 50%, ${BRAND.charcoal} 100%)`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 24, fontFamily: '"IBM Plex Sans", system-ui, sans-serif'
+      }}>
+        <div style={{
+          width: '100%', maxWidth: 420, background: '#FFFFFF', borderRadius: 8, padding: 40,
+          boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+        }}>
+          <div className="flex flex-col items-center" style={{ marginBottom: 28 }}>
+            <BotLogo size={72} theme={THEMES.light} />
+            <div style={{ fontSize: 9, color: BRAND.midGrey, marginTop: 14, letterSpacing: '0.22em', textTransform: 'uppercase', fontWeight: 600 }}>
+              Bank of Tanzania
+            </div>
+            <div style={{ fontSize: 18, color: BRAND.navy, marginTop: 10, fontWeight: 600, fontFamily: 'Georgia, serif' }}>
+              Economic Statistical Portal
+            </div>
+            <div style={{ fontSize: 11, color: BRAND.midGrey, marginTop: 4 }}>Sign in to continue</div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <Label theme={{ muted: BRAND.midGrey }}>Username</Label>
+            <div style={{ position: 'relative' }}>
+              <User size={14} style={{ position: 'absolute', left: 12, top: 11, color: BRAND.midGrey }} />
+              <input
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="e.g. analyst"
+                style={{
+                  width: '100%', padding: '9px 12px 9px 34px', fontSize: 13,
+                  border: `1px solid ${BRAND.mildGrey}`, borderRadius: 4, outline: 'none'
+                }}
+                onFocus={e => e.target.style.borderColor = BRAND.navy}
+                onBlur={e => e.target.style.borderColor = BRAND.mildGrey}
+              />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 8 }}>
+            <Label theme={{ muted: BRAND.midGrey }}>Password</Label>
+            <div style={{ position: 'relative' }}>
+              <Lock size={14} style={{ position: 'absolute', left: 12, top: 11, color: BRAND.midGrey }} />
+              <input
+                type={showPwd ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                style={{
+                  width: '100%', padding: '9px 40px 9px 34px', fontSize: 13,
+                  border: `1px solid ${BRAND.mildGrey}`, borderRadius: 4, outline: 'none'
+                }}
+                onFocus={e => e.target.style.borderColor = BRAND.navy}
+                onBlur={e => e.target.style.borderColor = BRAND.mildGrey}
+              />
+              <button onClick={() => setShowPwd(!showPwd)}
+                style={{ position: 'absolute', right: 10, top: 10, color: BRAND.midGrey }}>
+                {showPwd ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '14px 0 22px', fontSize: 11 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: BRAND.charcoal, cursor: 'pointer' }}>
+              <input type="checkbox" style={{ accentColor: BRAND.navy }} /> Remember me
+            </label>
+            <a style={{ color: BRAND.navy, cursor: 'pointer' }}>Forgot password?</a>
+          </div>
+
+          <button
+            onClick={() => setLoggedIn(true)}
+            style={{
+              width: '100%', padding: '11px', background: BRAND.navy, color: '#FFFFFF',
+              border: 'none', borderRadius: 4, fontSize: 13, fontWeight: 600,
+              letterSpacing: '0.04em', cursor: 'pointer'
+            }}
+          >
+            SIGN IN
+          </button>
+
+          <div style={{ textAlign: 'center', fontSize: 10, color: BRAND.midGrey, marginTop: 20 }}>
+            Demo prototype — any credentials will sign you in
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ------------------- DASHBOARD -------------------
+  return (
+    <div style={{
+      minHeight: '100vh', background: theme.bg, color: theme.text,
+      fontFamily, transition: 'background 0.25s, color 0.25s'
+    }}>
+      {/* STICKY HERO + TABS */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 30 }}>
+        <div style={{
+          background: theme.heroBg, color: theme.heroText,
+          borderBottom: `2px solid ${theme.heroAccent}`,
+          padding: '12px 24px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20
+        }}>
+          <div className="flex items-center gap-3">
+            <BotLogo size={46} theme={theme} />
+            <div>
+              <div style={{ fontSize: 9, letterSpacing: '0.22em', color: theme.heroAccent, textTransform: 'uppercase', fontWeight: 600 }}>
+                Bank of Tanzania
+              </div>
+              <div style={{ fontSize: 19, fontWeight: 700, letterSpacing: '0.02em', fontFamily: 'Georgia, serif' }}>
+                Economic Statistical Portal
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {Object.entries(THEMES).map(([k, t]) => {
+              const Icon = t.icon;
+              const active = k === themeKey;
+              return (
+                <button key={k} onClick={() => setThemeKey(k)}
+                  title={t.name}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '6px 12px', fontSize: 11,
+                    background: active ? theme.heroAccent : 'transparent',
+                    color: active ? BRAND.charcoal : theme.heroText,
+                    border: `1px solid ${active ? theme.heroAccent : 'rgba(255,255,255,0.3)'}`,
+                    borderRadius: 3, cursor: 'pointer', fontWeight: 500, transition: 'all 0.15s'
+                  }}>
+                  <Icon size={12} /> {t.name}
+                </button>
+              );
+            })}
+            <button onClick={() => setLoggedIn(false)}
+              style={{ marginLeft: 8, fontSize: 10, color: theme.heroText, opacity: 0.7, background: 'transparent', border: 'none', cursor: 'pointer' }}>
+              Sign out
+            </button>
+          </div>
+        </div>
+
+        {/* Tab bar */}
+        {isMobile ? (
+          <div style={{ background: theme.tabBg, borderBottom: `1px solid ${theme.border}`, padding: '10px 12px' }}>
+            <Dropdown
+              value={activeTab}
+              options={CATEGORIES.filter(c => INDICATORS.some(i => i.category === c))}
+              onChange={handleTabClick}
+              theme={theme} />
+          </div>
+        ) : (
+          <div style={{
+            background: theme.tabBg, borderBottom: `1px solid ${theme.border}`,
+            display: 'flex', justifyContent: 'center', overflowX: 'auto', padding: '0 12px'
+          }}>
+            {CATEGORIES.map(cat => {
+              const active = activeTab === cat;
+              const hasData = INDICATORS.some(i => i.category === cat);
+              return (
+                <button key={cat}
+                  onClick={() => hasData && handleTabClick(cat)}
+                  disabled={!hasData}
+                  style={{
+                    padding: isTablet ? '10px 10px' : '12px 16px',
+                    fontSize: isTablet ? 11 : 12, fontWeight: active ? 600 : 400,
+                    color: !hasData ? theme.muted : (active ? theme.tabActive : theme.text),
+                    background: 'transparent', border: 'none',
+                    borderBottom: `2px solid ${active ? theme.tabActiveBorder : 'transparent'}`,
+                    cursor: hasData ? 'pointer' : 'not-allowed',
+                    opacity: !hasData ? 0.4 : 1,
+                    whiteSpace: 'nowrap', transition: 'all 0.15s', letterSpacing: '0.02em'
+                  }}>
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* MAIN LAYOUT */}
+      <div style={{
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        gap: isMobile ? 10 : 16,
+        padding: isMobile ? 10 : 16,
+        alignItems: 'flex-start'
+      }}>
+
+        {/* LEFT PANEL */}
+        <div style={{
+          width: isMobile ? '100%' : (isTablet ? 220 : 240),
+          flexShrink: 0,
+          position: isMobile ? 'static' : 'sticky', top: 115,
+          background: theme.surface, border: `1px solid ${theme.border}`,
+          borderRadius: 6, padding: 14
+        }}>
+          {!visualized ? (
+            <>
+              <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: theme.muted, marginBottom: 10 }}>
+                Visualization
+              </div>
+
+              {[
+                { id: 'Line', label: 'Line', icon: TrendingUp },
+                { id: 'Bar', label: 'Bar', icon: BarChart3 },
+                { id: 'Area', label: 'Area', icon: Activity },
+                { id: 'Pie', label: 'Radial (Pie)', icon: Users },
+                { id: 'Demographic', label: 'Demographic', icon: Users },
+              ].map(opt => {
+                const Icon = opt.icon;
+                const active = chartType === opt.id;
+                return (
+                  <label key={opt.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px',
+                    borderRadius: 4, cursor: 'pointer', marginBottom: 2,
+                    background: active ? theme.border : 'transparent',
+                    border: `1px solid ${active ? theme.accent : 'transparent'}`
+                  }}>
+                    <input type="radio" name="chartType" checked={active}
+                      onChange={() => setChartType(opt.id)}
+                      style={{ accentColor: theme.accent }} />
+                    <Icon size={13} style={{ color: active ? theme.accent : theme.muted }} />
+                    <span style={{ fontSize: 12 }}>{opt.label}</span>
+                  </label>
+                );
+              })}
+
+              {chartType === 'Line' && (
+                <label style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '8px 8px',
+                  marginTop: 10, borderTop: `1px solid ${theme.border}`, cursor: 'pointer',
+                  paddingTop: 12
+                }}>
+                  <input type="checkbox" checked={showExtrema}
+                    onChange={e => setShowExtrema(e.target.checked)}
+                    style={{ accentColor: theme.accent }} />
+                  <span style={{ fontSize: 11 }}>Mark peaks & troughs</span>
+                </label>
+              )}
+
+              <div style={{ marginTop: 12, padding: 10, background: theme.bg, borderRadius: 4,
+                border: `1px dashed ${theme.border}` }}>
+                <div style={{ display: 'flex', alignItems: 'start', gap: 6 }}>
+                  <Info size={11} style={{ color: theme.accent, marginTop: 2, flexShrink: 0 }} />
+                  <div style={{ fontSize: 10, color: theme.muted, lineHeight: 1.4 }}>
+                    After visualization, each chart's bottom-right corner lets you adjust line width and H&amp;V axes.
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: theme.muted, marginBottom: 10 }}>
+                Chart settings
+              </div>
+
+              <Label theme={theme}>Frequency</Label>
+              <Dropdown value={frequency} options={['Monthly', 'Quarterly', 'Annual']}
+                onChange={setFrequency} theme={theme} compact />
+              <div style={{ height: 10 }} />
+              <Label theme={theme}>Location</Label>
+              <Dropdown value={location} options={LOCATIONS} onChange={setLocation} theme={theme} compact />
+              <div style={{ height: 10 }} />
+              <Label theme={theme}>Font type</Label>
+              <Dropdown
+                value={fontLabelFromValue(fontFamily)}
+                options={Object.keys(FONT_OPTIONS)}
+                onChange={(v) => setFontFamily(FONT_OPTIONS[v])}
+                theme={theme} compact />
+              <div style={{ height: 14 }} />
+              <Label theme={theme}>Grid layout</Label>
+              <Dropdown
+                value={gridMode === 'by_unit' ? 'Group by unit' : 'One per indicator'}
+                options={['Group by unit', 'One per indicator']}
+                onChange={(v) => setGridMode(v === 'Group by unit' ? 'by_unit' : 'per_indicator')}
+                theme={theme} compact />
+              <div style={{ height: 8 }} />
+              <Label theme={theme}>Columns</Label>
+              <Dropdown
+                value={gridColsOverride === null ? 'Auto (responsive)' : String(gridColsOverride)}
+                options={['Auto (responsive)', '1', '2', '3', '4']}
+                onChange={(v) => setGridColsOverride(v.startsWith('Auto') ? null : parseInt(v, 10))}
+                theme={theme} compact />
+
+              <div style={{ marginTop: 14, padding: 10, background: theme.bg, borderRadius: 4,
+                border: `1px dashed ${theme.border}` }}>
+                <div style={{ display: 'flex', alignItems: 'start', gap: 6 }}>
+                  <Info size={11} style={{ color: theme.accent, marginTop: 2, flexShrink: 0 }} />
+                  <div style={{ fontSize: 10, color: theme.muted, lineHeight: 1.4 }}>
+                    Each chart has its own <b>Colours</b> button (top-right, next to Export) that opens a colour picker for per-series override.
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* CENTER PANEL */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {!visualized ? (
+            // ---------- QUERY BUILDER ----------
+            <div style={{
+              background: theme.surface, border: `1px solid ${theme.border}`,
+              borderRadius: 6, padding: 18
+            }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 600, fontFamily: 'Georgia, serif' }}>Query Builder</div>
+                  <div style={{ fontSize: 11, color: theme.muted, marginTop: 2 }}>
+                    Active tab: <span style={{ color: theme.accent, fontWeight: 600 }}>{activeTab}</span>
+                  </div>
+                </div>
+                <button onClick={handleReset} style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  fontSize: 11, color: theme.muted, background: 'transparent', border: 'none', cursor: 'pointer'
+                }}>
+                  <RotateCcw size={11} /> Reset
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <Label theme={theme}>Variables (grouped by topic within this tab)</Label>
+                  <MultiSelect selected={selectedIndicators} options={indicatorOptions}
+                    onChange={setSelectedIndicators}
+                    placeholder="Choose one or more variables…" theme={theme} />
+                  <div style={{ fontSize: 10, color: theme.muted, marginTop: 4 }}>
+                    {indicatorOptions.length} variable{indicatorOptions.length === 1 ? '' : 's'} available in <b>{activeTab}</b>. Mixed units split into panels automatically.
+                  </div>
+                </div>
+
+                <div>
+                  <Label theme={theme}>Unit filter</Label>
+                  <Dropdown value={unitFilter} options={unitOptions} onChange={setUnitFilter} theme={theme} />
+                </div>
+
+                <div>
+                  <Label theme={theme}>Frequency</Label>
+                  <Dropdown value={frequency} options={['Monthly', 'Quarterly', 'Annual']} onChange={setFrequency} theme={theme} />
+                </div>
+
+                <div>
+                  <Label theme={theme}>Start date</Label>
+                  <DatePicker
+                    value={startDate}
+                    monthKeys={monthOptions}
+                    onChange={(k) => {
+                      setStartDate(k);
+                      if (keyCmp(k, endDate) > 0) setEndDate(k);
+                    }}
+                    theme={theme}
+                    label="Start date"
+                    maxKey={endDate}
+                  />
+                </div>
+
+                <div>
+                  <Label theme={theme}>End date</Label>
+                  <DatePicker
+                    value={endDate}
+                    monthKeys={monthOptions}
+                    onChange={(k) => {
+                      setEndDate(k);
+                      if (keyCmp(k, startDate) < 0) setStartDate(k);
+                    }}
+                    theme={theme}
+                    label="End date"
+                    minKey={startDate}
+                  />
+                </div>
+
+                <div>
+                  <Label theme={theme}>Location</Label>
+                  <Dropdown value={location} options={LOCATIONS} onChange={setLocation} theme={theme} />
+                </div>
+
+                <div>
+                  <Label theme={theme}>Font type</Label>
+                  <Dropdown
+                    value={fontLabelFromValue(fontFamily)}
+                    options={Object.keys(FONT_OPTIONS)}
+                    onChange={(v) => setFontFamily(FONT_OPTIONS[v])}
+                    theme={theme} />
+                </div>
+              </div>
+
+              <details style={{ marginTop: 16 }}>
+                <summary style={{
+                  fontSize: 11, color: theme.muted, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 6
+                }}>
+                  <Settings size={11} />
+                  Optional — chart title, subtitle, source, axis titles
+                </summary>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <Label theme={theme}>Title</Label>
+                    <input value={chartTitle} onChange={e => setChartTitle(e.target.value)}
+                      style={{ width: '100%', padding: '8px 10px', fontSize: 12, background: theme.bg, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: 4, outline: 'none' }} />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <Label theme={theme}>Subtitle</Label>
+                    <input value={chartSubtitle} onChange={e => setChartSubtitle(e.target.value)}
+                      style={{ width: '100%', padding: '8px 10px', fontSize: 12, background: theme.bg, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: 4, outline: 'none' }} />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <Label theme={theme}>Source</Label>
+                    <input value={chartSource} onChange={e => setChartSource(e.target.value)}
+                      style={{ width: '100%', padding: '8px 10px', fontSize: 12, background: theme.bg, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: 4, outline: 'none' }} />
+                  </div>
+                  <div>
+                    <Label theme={theme}>X-axis title</Label>
+                    <input value={xAxisTitle} onChange={e => setXAxisTitle(e.target.value)}
+                      placeholder="e.g. Period"
+                      style={{ width: '100%', padding: '8px 10px', fontSize: 12, background: theme.bg, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: 4, outline: 'none' }} />
+                  </div>
+                  <div>
+                    <Label theme={theme}>Y-axis title</Label>
+                    <input value={yAxisTitle} onChange={e => setYAxisTitle(e.target.value)}
+                      placeholder="default: series unit"
+                      style={{ width: '100%', padding: '8px 10px', fontSize: 12, background: theme.bg, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: 4, outline: 'none' }} />
+                  </div>
+                </div>
+              </details>
+
+              <button
+                onClick={handleVisualize}
+                disabled={selectedIndicators.length === 0}
+                style={{
+                  marginTop: 20, width: '100%', padding: '12px',
+                  background: selectedIndicators.length ? theme.buttonBg : theme.border,
+                  color: selectedIndicators.length ? theme.buttonText : theme.muted,
+                  border: 'none', borderRadius: 4, fontSize: 13, fontWeight: 600,
+                  letterSpacing: '0.04em', textTransform: 'uppercase',
+                  cursor: selectedIndicators.length ? 'pointer' : 'not-allowed',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                }}
+              >
+                <Play size={14} /> Load & Visualize
+              </button>
+            </div>
+          ) : (
+            // ---------- CHARTS AREA ----------
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: 11, color: theme.muted }}>
+                  {selectedIndicators.length} indicator{selectedIndicators.length > 1 ? 's' : ''} · {frequency} · {location}
+                  {panels.length > 1 && ` · ${panels.length} panels · responsive grid`}
+                </div>
+                <button onClick={() => setVisualized(false)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    fontSize: 11, color: theme.accent, background: 'transparent',
+                    border: `1px solid ${theme.border}`, padding: '5px 10px', borderRadius: 4, cursor: 'pointer'
+                  }}>
+                  <Settings size={11} /> Edit query
+                </button>
+              </div>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns:
+                  gridColsOverride !== null
+                    ? `repeat(${gridColsOverride}, minmax(0, 1fr))`
+                    : (minPanelWidth === 0
+                        ? '1fr'
+                        : `repeat(auto-fit, minmax(${minPanelWidth}px, 1fr))`),
+                gap: 14
+              }}>
+                {panels.map(p => (
+                  <ChartPanel key={p.key}
+                    unit={p.unit} indicators={p.data} data={p.data}
+                    initialChartType={chartType}
+                    initialShowExtrema={showExtrema}
+                    theme={theme}
+                    title={p.title || (panels.length > 1 ? `${chartTitle} · ${p.unit}` : chartTitle)}
+                    subtitle={chartSubtitle}
+                    source={chartSource}
+                    fontFamily={fontFamily}
+                    colors={customColors}
+                    frequency={frequency}
+                    xAxisTitle={xAxisTitle}
+                    yAxisTitle={yAxisTitle || p.unit} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT PANEL (post-viz summary) */}
+        {visualized && !isMobile && (
+          <div style={{
+            width: isTablet ? 230 : 250,
+            flexShrink: 0, position: 'sticky', top: 115,
+            background: theme.surface, border: `1px solid ${theme.border}`,
+            borderRadius: 6, padding: 14
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: theme.muted, marginBottom: 10 }}>
+              Current query
+            </div>
+
+            <Label theme={theme}>Variables</Label>
+            <MultiSelect selected={selectedIndicators} options={indicatorOptions}
+              onChange={setSelectedIndicators}
+              placeholder="Pick…" theme={theme} maxHeight={200} />
+
+            <div style={{ height: 10 }} />
+            <Label theme={theme}>Unit filter</Label>
+            <Dropdown value={unitFilter} options={unitOptions} onChange={setUnitFilter} theme={theme} compact />
+
+            <div style={{ height: 10 }} />
+            <Label theme={theme}>Start date</Label>
+            <DatePicker
+              value={startDate}
+              monthKeys={monthOptions}
+              onChange={(k) => {
+                setStartDate(k);
+                if (keyCmp(k, endDate) > 0) setEndDate(k);
+              }}
+              theme={theme}
+              label="Start date"
+              maxKey={endDate}
+            />
+
+            <div style={{ height: 10 }} />
+            <Label theme={theme}>End date</Label>
+            <DatePicker
+              value={endDate}
+              monthKeys={monthOptions}
+              onChange={(k) => {
+                setEndDate(k);
+                if (keyCmp(k, startDate) < 0) setStartDate(k);
+              }}
+              theme={theme}
+              label="End date"
+              minKey={startDate}
+            />
+
+            <div style={{ marginTop: 14, padding: 10, background: theme.bg, borderRadius: 4, border: `1px solid ${theme.border}` }}>
+              <div style={{ display: 'flex', alignItems: 'start', gap: 6 }}>
+                <Info size={11} style={{ color: theme.accent, marginTop: 2, flexShrink: 0 }} />
+                <div style={{ fontSize: 10, color: theme.muted, lineHeight: 1.4 }}>
+                  Each chart's bottom-right corner carries its own Line-width and H&amp;V-axes controls.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {!isMobile && <div style={{ height: 64 }} />}
+      {/* FOOTER */}
+      <div style={{
+        position: isMobile ? 'static' : 'fixed',
+        bottom: isMobile ? 'auto' : 0,
+        left: 0, right: 0, zIndex: 29,
+        marginTop: isMobile ? 16 : 0,
+        padding: '14px 24px',
+        background: theme.heroBg, color: theme.heroText,
+        borderTop: `2px solid ${theme.heroAccent}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10
+      }}>
+        <div style={{ fontSize: 10, opacity: 0.8 }}>
+          © {new Date().getFullYear()} Bank of Tanzania. All rights reserved.
+        </div>
+        <div style={{ display: 'flex', gap: 18, fontSize: 10 }}>
+          <a style={{ color: theme.heroText, opacity: 0.8 }}>Privacy Policy</a>
+          <a style={{ color: theme.heroText, opacity: 0.8 }}>Terms of Use</a>
+          <a style={{ color: theme.heroText, opacity: 0.8 }}>Contact Us</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ---------- Mount ----------
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+
+// Hide boot splash once React has rendered
+requestAnimationFrame(() => {
+  const boot = document.getElementById('boot');
+  if (boot) {
+    boot.classList.add('gone');
+    setTimeout(() => boot.remove(), 350);
+  }
+});
+</script>
+
+</body>
+</html>
