@@ -1,0 +1,17 @@
+__pycache__/
+.env
+.venv/
+*.egg-info/
+dist/
+.claude
+
+# Ignore images in root directory only
+/*.png
+/*.svg
+/*.jpg
+/*.jpeg
+
+# Ignore other root files
+/nul
+/UI.png
+/schema_*.png
